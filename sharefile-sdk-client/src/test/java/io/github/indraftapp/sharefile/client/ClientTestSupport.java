@@ -35,6 +35,12 @@ final class ClientTestSupport {
   }
 
   static TestContext createContext(TestTransport transport, RetryConfig retryConfig) {
+    return createContext(transport, retryConfig, MetricsProvider.noop());
+  }
+
+  static TestContext createContext(
+      TestTransport transport, RetryConfig retryConfig, MetricsProvider metricsProvider) {
+    ShareFileConfig config = ShareFileConfig.builder().subdomain("testco").build();
     OAuthToken initialToken = new OAuthToken();
     initialToken.setAccessToken("test-bearer-token");
     initialToken.setRefreshToken("refresh-token");
@@ -43,7 +49,7 @@ final class ClientTestSupport {
 
     TokenManager tokenManager =
         new TokenManager(
-            ShareFileConfig.builder().subdomain("testco").build(),
+            config,
             "test-client-id",
             "test-client-secret",
             () ->
@@ -54,6 +60,7 @@ final class ClientTestSupport {
             transport,
             new InMemoryTokenStore(),
             MAPPER,
+            metricsProvider,
             initialToken);
 
     ShareFileHttpClient httpClient =
@@ -62,7 +69,7 @@ final class ClientTestSupport {
             tokenManager,
             MAPPER,
             retryConfig,
-            MetricsProvider.noop(),
+            metricsProvider,
             BASE_URL,
             Duration.ofSeconds(30));
 
@@ -70,6 +77,9 @@ final class ClientTestSupport {
         new ItemsClient(httpClient),
         new AccessControlsClient(httpClient),
         new AsyncOperationsClient(httpClient),
+        new SharesClient(httpClient),
+        new UsersClient(httpClient),
+        new TransferClient(httpClient, transport, MAPPER, config, retryConfig, metricsProvider),
         new ResourceRequestExecutor(httpClient, "/Items"),
         transport,
         tokenManager);
@@ -79,6 +89,9 @@ final class ClientTestSupport {
       ItemsClient itemsClient,
       AccessControlsClient accessControlsClient,
       AsyncOperationsClient asyncOperationsClient,
+      SharesClient sharesClient,
+      UsersClient usersClient,
+      TransferClient transferClient,
       ResourceRequestExecutor executor,
       TestTransport transport,
       TokenManager tokenManager)
@@ -101,6 +114,14 @@ final class ClientTestSupport {
     }
 
     void enqueueJsonResponse(int statusCode, String body, Map<String, List<String>> headers) {
+      responses.add(new MockResponse(statusCode, body.getBytes(StandardCharsets.UTF_8), headers));
+    }
+
+    void enqueueResponse(int statusCode, byte[] body) {
+      enqueueResponse(statusCode, body, Map.of());
+    }
+
+    void enqueueResponse(int statusCode, byte[] body, Map<String, List<String>> headers) {
       responses.add(new MockResponse(statusCode, body, headers));
     }
 
@@ -137,7 +158,7 @@ final class ClientTestSupport {
       }
 
       MockResponse mockResponse = responses.remove(0);
-      byte[] responseBytes = mockResponse.body().getBytes(StandardCharsets.UTF_8);
+      byte[] responseBytes = mockResponse.body();
 
       return new HttpResponse() {
         private final InputStream stream = new ByteArrayInputStream(responseBytes);
@@ -178,5 +199,5 @@ final class ClientTestSupport {
 
   record RecordedRequest(URI uri, String method, String body, Map<String, String> headers) {}
 
-  record MockResponse(int statusCode, String body, Map<String, List<String>> headers) {}
+  record MockResponse(int statusCode, byte[] body, Map<String, List<String>> headers) {}
 }

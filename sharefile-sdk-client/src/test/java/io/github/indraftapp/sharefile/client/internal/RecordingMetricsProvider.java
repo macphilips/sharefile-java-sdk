@@ -7,11 +7,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Test metrics provider that records all calls for verification. */
-final class RecordingMetricsProvider implements MetricsProvider {
+public final class RecordingMetricsProvider implements MetricsProvider {
 
-  boolean requestRecorded;
-  boolean errorRecorded;
-  final List<String> counters = new ArrayList<>();
+  public boolean requestRecorded;
+  public boolean errorRecorded;
+  public final List<String> counters = new ArrayList<>();
+  public final List<String> values = new ArrayList<>();
+  public final List<String> gauges = new ArrayList<>();
 
   @Override
   public Timer startTimer() {
@@ -34,10 +36,14 @@ final class RecordingMetricsProvider implements MetricsProvider {
   }
 
   @Override
-  public void recordValue(String name, double value, String... tags) {}
+  public void recordValue(String name, double value, String... tags) {
+    values.add(name);
+  }
 
   @Override
-  public void setGauge(String name, double value, String... tags) {}
+  public void setGauge(String name, double value, String... tags) {
+    gauges.add(name);
+  }
 
   private static final class RecordingTimer implements Timer {
     private final Instant start = Instant.now();

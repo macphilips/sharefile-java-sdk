@@ -3,6 +3,7 @@ package io.github.indraftapp.sharefile.core.model.request;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.indraftapp.sharefile.core.model.enums.UploadMethod;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -44,4 +45,19 @@ public class UploadRequestParams {
 
   @JsonProperty("BatchId")
   private String batchId;
+
+  @JsonProperty("BatchLast")
+  private Boolean batchLast;
+
+  @JsonProperty("NotifyUsers")
+  private Boolean notifyUsers;
+
+  @JsonProperty("ClientCreatedDate")
+  private Instant clientCreatedDate;
+
+  @JsonProperty("ClientModifiedDate")
+  private Instant clientModifiedDate;
+
+  @JsonProperty("ExpirationDays")
+  private Integer expirationDays;
 }

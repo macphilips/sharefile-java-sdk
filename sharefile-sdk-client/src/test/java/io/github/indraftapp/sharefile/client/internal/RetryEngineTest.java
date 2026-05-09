@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.indraftapp.sharefile.client.MetricNames;
 import io.github.indraftapp.sharefile.client.http.HttpTransport;
 import io.github.indraftapp.sharefile.client.retry.RetryConfig;
 import io.github.indraftapp.sharefile.client.retry.RetryPolicy;
@@ -299,7 +300,7 @@ class RetryEngineTest {
         RetryPolicy.DEFAULT);
 
     assertEquals(2, metricsProvider.counters.size());
-    assertTrue(metricsProvider.counters.stream().allMatch("sharefile.retry"::equals));
+    assertTrue(metricsProvider.counters.stream().allMatch(MetricNames.RETRY_ATTEMPTS::equals));
   }
 
   // ── RetryConfig tests ─────────────────────────────────────────────────

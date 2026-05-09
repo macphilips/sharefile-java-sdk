@@ -1,10 +1,13 @@
 package io.github.indraftapp.sharefile.client.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.indraftapp.sharefile.client.MetricNames;
 import io.github.indraftapp.sharefile.client.config.ShareFileConfig;
 import io.github.indraftapp.sharefile.client.http.HttpTransport;
+import io.github.indraftapp.sharefile.client.internal.LogSanitizer;
 import io.github.indraftapp.sharefile.client.spi.CredentialProvider;
 import io.github.indraftapp.sharefile.client.spi.Credentials;
+import io.github.indraftapp.sharefile.client.spi.MetricsProvider;
 import io.github.indraftapp.sharefile.client.spi.TokenStore;
 import io.github.indraftapp.sharefile.core.exception.CredentialResolutionException;
 import io.github.indraftapp.sharefile.core.exception.ShareFileAuthenticationException;
@@ -68,6 +71,7 @@ public final class TokenManager implements AutoCloseable {
   private final HttpTransport transport;
   private final TokenStore tokenStore;
   private final ObjectMapper objectMapper;
+  private final MetricsProvider metrics;
   private volatile OAuthToken currentToken;
   private final ReentrantReadWriteLock tokenLock = new ReentrantReadWriteLock();
   private final ScheduledExecutorService scheduler;
@@ -92,6 +96,26 @@ public final class TokenManager implements AutoCloseable {
       HttpTransport transport,
       TokenStore tokenStore,
       ObjectMapper objectMapper) {
+    this(
+        config,
+        clientId,
+        clientSecret,
+        credentialProvider,
+        transport,
+        tokenStore,
+        objectMapper,
+        MetricsProvider.noop());
+  }
+
+  public TokenManager(
+      ShareFileConfig config,
+      String clientId,
+      String clientSecret,
+      CredentialProvider credentialProvider,
+      HttpTransport transport,
+      TokenStore tokenStore,
+      ObjectMapper objectMapper,
+      MetricsProvider metrics) {
     this.config = Objects.requireNonNull(config, "config must not be null");
     this.clientId = Objects.requireNonNull(clientId, "clientId must not be null");
     this.clientSecret = Objects.requireNonNull(clientSecret, "clientSecret must not be null");
@@ -100,6 +124,7 @@ public final class TokenManager implements AutoCloseable {
     this.transport = Objects.requireNonNull(transport, "transport must not be null");
     this.tokenStore = Objects.requireNonNull(tokenStore, "tokenStore must not be null");
     this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+    this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
 
     ScheduledThreadPoolExecutor exec =
         new ScheduledThreadPoolExecutor(
@@ -148,7 +173,37 @@ public final class TokenManager implements AutoCloseable {
       TokenStore tokenStore,
       ObjectMapper objectMapper,
       OAuthToken initialToken) {
-    this(config, clientId, clientSecret, credentialProvider, transport, tokenStore, objectMapper);
+    this(
+        config,
+        clientId,
+        clientSecret,
+        credentialProvider,
+        transport,
+        tokenStore,
+        objectMapper,
+        MetricsProvider.noop(),
+        initialToken);
+  }
+
+  public TokenManager(
+      ShareFileConfig config,
+      String clientId,
+      String clientSecret,
+      CredentialProvider credentialProvider,
+      HttpTransport transport,
+      TokenStore tokenStore,
+      ObjectMapper objectMapper,
+      MetricsProvider metrics,
+      OAuthToken initialToken) {
+    this(
+        config,
+        clientId,
+        clientSecret,
+        credentialProvider,
+        transport,
+        tokenStore,
+        objectMapper,
+        metrics);
     if (initialToken != null) {
       if (initialToken.getExpiresAt() == null && initialToken.getExpiresIn() != null) {
         initialToken.computeExpiresAt();
@@ -309,9 +364,22 @@ public final class TokenManager implements AutoCloseable {
     var request = buildFormEncodedRequest(tokenEndpoint, bodyBytes, config.getReadTimeout());
 
     try (HttpTransport.HttpResponse response = transport.execute(request)) {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace(
+            "Token request trace uri={} headers={} body={}",
+            tokenEndpoint,
+            LogSanitizer.redactHeaders(request.headers()),
+            LogSanitizer.redactBody(formBody));
+      }
       byte[] responseBody = response.bodyBytes(1024 * 1024); // 1 MB max for token responses
 
       if (response.statusCode() >= 400) {
+        metrics.incrementCounter(
+            MetricNames.AUTH_TOKEN_REFRESH,
+            "outcome",
+            "failure",
+            "status",
+            String.valueOf(response.statusCode()));
         String errorBody = new String(responseBody, StandardCharsets.UTF_8);
         throw new ShareFileAuthenticationException(
             "Token endpoint returned HTTP %d: %s".formatted(response.statusCode(), errorBody));
@@ -319,6 +387,7 @@ public final class TokenManager implements AutoCloseable {
 
       OAuthToken token = objectMapper.readValue(responseBody, OAuthToken.class);
       token.computeExpiresAt();
+      metrics.incrementCounter(MetricNames.AUTH_TOKEN_REFRESH, "outcome", "success");
       return token;
     } catch (ShareFileAuthenticationException e) {
       throw e;
@@ -332,6 +401,13 @@ public final class TokenManager implements AutoCloseable {
   private void applyToken(OAuthToken token) {
     this.currentToken = token;
     tokenStore.save(token);
+    if (token.getExpiresAt() != null) {
+      long secondsRemaining =
+          Math.max(
+              0L, Duration.between(java.time.Instant.now(), token.getExpiresAt()).getSeconds());
+      metrics.setGauge(
+          MetricNames.AUTH_TOKEN_EXPIRY, secondsRemaining, "subdomain", config.getSubdomain());
+    }
     scheduleProactiveRefresh(token);
   }
 
@@ -362,13 +438,13 @@ public final class TokenManager implements AutoCloseable {
       try {
         OAuthToken refreshed = performRefreshWithRetries();
         applyToken(refreshed);
-        LOG.debug("Proactive token refresh succeeded");
+        LOG.info("Proactive token refresh succeeded");
       } catch (ShareFileAuthenticationException e) {
         LOG.warn("Proactive refresh failed, attempting full re-auth", e);
         try {
           OAuthToken token = performFullAuthentication();
           applyToken(token);
-          LOG.debug("Full re-authentication succeeded after proactive refresh failure");
+          LOG.info("Full re-authentication succeeded after proactive refresh failure");
         } catch (ShareFileAuthenticationException reAuthEx) {
           LOG.error("Full re-authentication also failed", reAuthEx);
           // Token will be refreshed on next getAccessToken() call
@@ -432,6 +508,7 @@ public final class TokenManager implements AutoCloseable {
       try {
         OAuthToken refreshed = performRefreshWithRetries();
         applyToken(refreshed);
+        LOG.info("Token refresh succeeded");
         return refreshed.getAccessToken();
       } catch (ShareFileAuthenticationException e) {
         if (forcedRefresh) {
@@ -444,6 +521,7 @@ public final class TokenManager implements AutoCloseable {
 
     OAuthToken token = performFullAuthentication();
     applyToken(token);
+    LOG.info("Token authentication succeeded");
     return token.getAccessToken();
   }
 

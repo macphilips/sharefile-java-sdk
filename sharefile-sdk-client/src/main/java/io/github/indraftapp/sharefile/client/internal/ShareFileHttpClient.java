@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.indraftapp.sharefile.client.MetricNames;
 import io.github.indraftapp.sharefile.client.auth.TokenManager;
 import io.github.indraftapp.sharefile.client.http.HttpTransport;
 import io.github.indraftapp.sharefile.client.retry.RetryConfig;
@@ -26,6 +27,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +57,7 @@ public final class ShareFileHttpClient {
   private final MetricsProvider metrics;
   private final String baseUrl;
   private final Duration readTimeout;
+  private final AtomicInteger activeRequests = new AtomicInteger();
 
   /**
    * Creates a new ShareFileHttpClient.
@@ -238,6 +241,7 @@ public final class ShareFileHttpClient {
 
     MetricsProvider.Timer timer = metrics.startTimer();
     String entity = extractEntityName(uri.getPath());
+    incrementActiveRequests(entity, method);
 
     try {
       HttpTransport.HttpResponse response =
@@ -256,8 +260,10 @@ public final class ShareFileHttpClient {
       }
     } catch (ShareFileApiException e) {
       timer.stop();
-      metrics.recordError(entity, method, e.getHttpStatus());
+      recordErrorMetric(entity, method, e.getHttpStatus());
       throw e;
+    } finally {
+      decrementActiveRequests(entity, method);
     }
   }
 
@@ -268,6 +274,7 @@ public final class ShareFileHttpClient {
 
     MetricsProvider.Timer timer = metrics.startTimer();
     String entity = extractEntityName(uri.getPath());
+    incrementActiveRequests(entity, method);
 
     try {
       HttpTransport.HttpResponse response =
@@ -286,8 +293,10 @@ public final class ShareFileHttpClient {
       }
     } catch (ShareFileApiException e) {
       timer.stop();
-      metrics.recordError(entity, method, e.getHttpStatus());
+      recordErrorMetric(entity, method, e.getHttpStatus());
       throw e;
+    } finally {
+      decrementActiveRequests(entity, method);
     }
   }
 
@@ -297,6 +306,7 @@ public final class ShareFileHttpClient {
 
     MetricsProvider.Timer timer = metrics.startTimer();
     String entity = extractEntityName(uri.getPath());
+    incrementActiveRequests(entity, method);
 
     try {
       HttpTransport.HttpResponse response =
@@ -315,8 +325,10 @@ public final class ShareFileHttpClient {
       }
     } catch (ShareFileApiException e) {
       timer.stop();
-      metrics.recordError(entity, method, e.getHttpStatus());
+      recordErrorMetric(entity, method, e.getHttpStatus());
       throw e;
+    } finally {
+      decrementActiveRequests(entity, method);
     }
   }
 
@@ -335,6 +347,7 @@ public final class ShareFileHttpClient {
       String method, URI uri, byte[] jsonBody, String requestId, boolean allowTokenRefresh) {
     String token = tokenManager.getAccessToken();
     HttpTransport.HttpRequest request = buildRequest(method, uri, jsonBody, requestId, token);
+    logRequest(method, uri, request.headers(), jsonBody);
 
     HttpTransport.HttpResponse response = transport.execute(request);
 
@@ -369,6 +382,8 @@ public final class ShareFileHttpClient {
       throw ErrorResponseMapper.create(
           status, parsed.code, parsed.message, requestId, method, uri.toString(), retryAfter);
     }
+
+    logResponse(method, uri, status, response.headers());
 
     return response;
   }
@@ -464,6 +479,70 @@ public final class ShareFileHttpClient {
 
   private static String encodeUri(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+  }
+
+  private void incrementActiveRequests(String entity, String method) {
+    metrics.setGauge(
+        MetricNames.HTTP_REQUESTS_ACTIVE,
+        activeRequests.incrementAndGet(),
+        "entity",
+        entity,
+        "method",
+        method);
+  }
+
+  private void decrementActiveRequests(String entity, String method) {
+    metrics.setGauge(
+        MetricNames.HTTP_REQUESTS_ACTIVE,
+        Math.max(0, activeRequests.decrementAndGet()),
+        "entity",
+        entity,
+        "method",
+        method);
+  }
+
+  private void recordErrorMetric(String entity, String method, int status) {
+    metrics.recordError(entity, method, status);
+    metrics.incrementCounter(
+        MetricNames.HTTP_ERRORS,
+        "entity",
+        entity,
+        "method",
+        method,
+        "status",
+        String.valueOf(status));
+  }
+
+  private void logRequest(String method, URI uri, Map<String, String> headers, byte[] jsonBody) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("HTTP request {} {}", method, uri);
+    }
+    if (LOG.isTraceEnabled()) {
+      String body =
+          jsonBody == null
+              ? ""
+              : LogSanitizer.redactBody(new String(jsonBody, StandardCharsets.UTF_8));
+      LOG.trace(
+          "HTTP request trace method={} uri={} headers={} body={}",
+          method,
+          uri,
+          LogSanitizer.redactHeaders(headers),
+          body);
+    }
+  }
+
+  private void logResponse(String method, URI uri, int status, Map<String, List<String>> headers) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("HTTP response {} {} -> {}", method, uri, status);
+    }
+    if (LOG.isTraceEnabled()) {
+      LOG.trace(
+          "HTTP response trace method={} uri={} status={} headers={}",
+          method,
+          uri,
+          status,
+          headers);
+    }
   }
 
   // ── Serialization ─────────────────────────────────────────────────────

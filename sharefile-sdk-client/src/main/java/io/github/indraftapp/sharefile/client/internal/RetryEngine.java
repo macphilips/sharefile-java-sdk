@@ -1,5 +1,6 @@
 package io.github.indraftapp.sharefile.client.internal;
 
+import io.github.indraftapp.sharefile.client.MetricNames;
 import io.github.indraftapp.sharefile.client.http.HttpTransport;
 import io.github.indraftapp.sharefile.client.retry.RetryConfig;
 import io.github.indraftapp.sharefile.client.retry.RetryPolicy;
@@ -58,8 +59,8 @@ final class RetryEngine {
         if (!shouldRetryConnectionFailure(method, policy, attempt)) {
           throw e;
         }
-        LOG.debug("Connection failure on attempt {}, retrying: {}", attempt, e.getMessage());
-        metrics.incrementCounter("sharefile.retry", "reason", "connection_failure");
+        LOG.warn("Connection failure on attempt {}, retrying: {}", attempt, e.getMessage());
+        metrics.incrementCounter(MetricNames.RETRY_ATTEMPTS, "reason", "connection_failure");
         sleepFor(Duration.ofSeconds(2));
       } catch (RetryableResponseException e) {
         attempt++;
@@ -70,12 +71,12 @@ final class RetryEngine {
           throw e.toApiException();
         }
         Duration backoff = computeBackoff(e, attempt);
-        LOG.debug(
+        LOG.warn(
             "HTTP {} on attempt {}, retrying after {}ms",
             e.statusCode(),
             attempt,
             backoff.toMillis());
-        metrics.incrementCounter("sharefile.retry", "reason", "http_" + e.statusCode());
+        metrics.incrementCounter(MetricNames.RETRY_ATTEMPTS, "reason", "http_" + e.statusCode());
         sleepFor(backoff);
       }
     }
