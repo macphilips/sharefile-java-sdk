@@ -2,6 +2,8 @@
 
 This project enforces Java style and formatting through Gradle.
 
+Gradle manages the Node.js and npm toolchain used by Spotless/Prettier. The first formatting run may download that toolchain into the local Gradle cache.
+
 ## Commands
 
 Run automatic formatting:

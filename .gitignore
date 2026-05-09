@@ -1,6 +1,6 @@
 # Gradle
 .gradle/
-.gradle-local/
+.gradle-local*/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
