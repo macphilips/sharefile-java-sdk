@@ -2,6 +2,7 @@ package io.github.indraftapp.sharefile.core.model.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,4 +17,7 @@ public class CloneRequest {
 
   @JsonProperty("Overwrite")
   private Boolean overwrite;
+
+  @JsonProperty("ClonePrincipalIds")
+  private List<String> clonePrincipalIds;
 }

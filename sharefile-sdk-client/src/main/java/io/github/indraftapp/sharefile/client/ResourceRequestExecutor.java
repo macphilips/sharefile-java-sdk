@@ -36,6 +36,14 @@ final class ResourceRequestExecutor {
     return URI.create(basePath + "/" + action);
   }
 
+  URI relativeUri(String path) {
+    Objects.requireNonNull(path, "path must not be null");
+    if (path.isBlank()) {
+      throw new IllegalArgumentException("path must not be blank");
+    }
+    return URI.create(path.startsWith("/") ? path : "/" + path);
+  }
+
   URI entityUri(String id) {
     Objects.requireNonNull(id, "id must not be null");
     return URI.create(basePath + "(" + id + ")");

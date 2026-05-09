@@ -68,6 +68,8 @@ final class ClientTestSupport {
 
     return new TestContext(
         new ItemsClient(httpClient),
+        new AccessControlsClient(httpClient),
+        new AsyncOperationsClient(httpClient),
         new ResourceRequestExecutor(httpClient, "/Items"),
         transport,
         tokenManager);
@@ -75,6 +77,8 @@ final class ClientTestSupport {
 
   record TestContext(
       ItemsClient itemsClient,
+      AccessControlsClient accessControlsClient,
+      AsyncOperationsClient asyncOperationsClient,
       ResourceRequestExecutor executor,
       TestTransport transport,
       TokenManager tokenManager)
