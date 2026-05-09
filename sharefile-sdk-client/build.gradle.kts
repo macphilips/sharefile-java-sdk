@@ -1,5 +1,6 @@
 dependencies {
     api(project(":sharefile-sdk-core"))
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
     implementation("org.slf4j:slf4j-api:2.0.16")
 
     testImplementation(platform("org.junit:junit-bom:5.11.3"))
