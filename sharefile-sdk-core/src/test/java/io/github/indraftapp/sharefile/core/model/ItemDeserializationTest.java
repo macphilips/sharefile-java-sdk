@@ -1,7 +1,7 @@
 package io.github.indraftapp.sharefile.core.model;
 
+import io.github.indraftapp.sharefile.core.jackson.ShareFileObjectMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,8 +15,7 @@ class ItemDeserializationTest {
 
     @BeforeEach
     void setUp() {
-        mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
+        mapper = ShareFileObjectMapper.create();
     }
 
     @Test
@@ -38,6 +37,7 @@ class ItemDeserializationTest {
 
         Item item = mapper.readValue(json, Item.class);
 
+        assertThat(item).isInstanceOf(File.class);
         assertThat(item.getMetadata()).isEqualTo("https://example.sf-api.com/sf/v3/$metadata#Items/@Element");
         assertThat(item.getType()).isEqualTo("ShareFile.Api.Models.File");
         assertThat(item.getId()).isEqualTo("item-abc-123");
@@ -128,5 +128,54 @@ class ItemDeserializationTest {
         assertThat(item.getZone()).isNotNull();
         assertThat(item.getZone().getId()).isEqualTo("zone-1");
         assertThat(item.getZone().getName()).isEqualTo("US East Storage");
+    }
+
+    @Test
+    void shouldDeserializeNestedItemSubtypes() throws Exception {
+        String json = """
+                {
+                    "Id": "folder-1",
+                    "odata.type": "ShareFile.Api.Models.Folder",
+                    "Children": [
+                        {
+                            "Id": "file-1",
+                            "odata.type": "ShareFile.Api.Models.File",
+                            "Name": "report.pdf"
+                        },
+                        {
+                            "Id": "note-1",
+                            "odata.type": "ShareFile.Api.Models.Note",
+                            "Name": "Read me"
+                        }
+                    ]
+                }
+                """;
+
+        Folder folder = mapper.readValue(json, Folder.class);
+
+        assertThat(folder.getChildren()).hasSize(2);
+        assertThat(folder.getChildren().get(0)).isInstanceOf(File.class);
+        assertThat(folder.getChildren().get(1)).isInstanceOf(Note.class);
+    }
+
+    @Test
+    void shouldDeserializeNestedUserSubtype() throws Exception {
+        String json = """
+                {
+                    "Id": "item-1",
+                    "Name": "shared-folder",
+                    "Creator": {
+                        "Id": "account-user-1",
+                        "odata.type": "ShareFile.Api.Models.AccountUser",
+                        "Email": "owner@example.com",
+                        "IsAdministrator": true
+                    }
+                }
+                """;
+
+        Item item = mapper.readValue(json, Item.class);
+
+        assertThat(item.getCreator()).isInstanceOf(AccountUser.class);
+        assertThat(((AccountUser) item.getCreator()).getIsAdministrator()).isTrue();
     }
 }

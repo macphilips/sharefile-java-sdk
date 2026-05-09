@@ -1,11 +1,23 @@
 package io.github.indraftapp.sharefile.core.model;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
+import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.github.indraftapp.sharefile.core.jackson.ODataTypeResolver;
 import io.github.indraftapp.sharefile.core.model.response.UserPreferences;
 import io.github.indraftapp.sharefile.core.model.response.UserSecurity;
 
 import java.util.List;
 
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.CUSTOM,
+        include = As.EXISTING_PROPERTY,
+        property = "odata.type",
+        visible = true,
+        defaultImpl = User.class
+)
+@JsonTypeIdResolver(ODataTypeResolver.class)
 public class User extends ODataEntity {
 
     @JsonProperty("Email")

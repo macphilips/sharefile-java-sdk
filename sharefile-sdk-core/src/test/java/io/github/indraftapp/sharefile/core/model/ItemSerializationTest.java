@@ -1,8 +1,7 @@
 package io.github.indraftapp.sharefile.core.model;
 
+import io.github.indraftapp.sharefile.core.jackson.ShareFileObjectMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -14,9 +13,7 @@ class ItemSerializationTest {
 
     @BeforeEach
     void setUp() {
-        mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        mapper = ShareFileObjectMapper.create();
     }
 
     @Test
