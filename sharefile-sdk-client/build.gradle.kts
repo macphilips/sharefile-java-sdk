@@ -6,4 +6,5 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core:3.26.3")
     testRuntimeOnly("ch.qos.logback:logback-classic:1.5.12")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
