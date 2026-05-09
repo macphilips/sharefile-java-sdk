@@ -94,7 +94,7 @@ public final class ShareFileHttpClient {
    * @return the deserialized response
    */
   public <T> T get(String path, Map<String, String> params, Class<T> responseType) {
-    return execute("GET", path, null, params, responseType, RetryPolicy.DEFAULT);
+    return execute("GET", buildUri(path, params), null, responseType, RetryPolicy.DEFAULT);
   }
 
   /**
@@ -107,7 +107,8 @@ public final class ShareFileHttpClient {
    * @return the deserialized response
    */
   public <T> T get(String path, Map<String, String> params, TypeReference<T> responseType) {
-    return executeWithTypeRef("GET", path, null, params, responseType, RetryPolicy.DEFAULT);
+    return executeWithTypeRef(
+        "GET", buildUri(path, params), null, responseType, RetryPolicy.DEFAULT);
   }
 
   /**
@@ -120,7 +121,7 @@ public final class ShareFileHttpClient {
    * @return the deserialized response
    */
   public <T> T post(String path, Object body, Class<T> responseType) {
-    return execute("POST", path, body, Map.of(), responseType, RetryPolicy.DEFAULT);
+    return execute("POST", buildUri(path, Map.of()), body, responseType, RetryPolicy.DEFAULT);
   }
 
   /**
@@ -134,7 +135,7 @@ public final class ShareFileHttpClient {
    * @return the deserialized response
    */
   public <T> T post(String path, Object body, Class<T> responseType, RetryPolicy policy) {
-    return execute("POST", path, body, Map.of(), responseType, policy);
+    return execute("POST", buildUri(path, Map.of()), body, responseType, policy);
   }
 
   /**
@@ -147,7 +148,7 @@ public final class ShareFileHttpClient {
    * @return the deserialized response
    */
   public <T> T patch(String path, Object body, Class<T> responseType) {
-    return execute("PATCH", path, body, Map.of(), responseType, RetryPolicy.DEFAULT);
+    return execute("PATCH", buildUri(path, Map.of()), body, responseType, RetryPolicy.DEFAULT);
   }
 
   /**
@@ -157,7 +158,55 @@ public final class ShareFileHttpClient {
    * @param params query parameters
    */
   public void delete(String path, Map<String, String> params) {
-    execute("DELETE", path, null, params, Void.class, RetryPolicy.DEFAULT);
+    execute("DELETE", buildUri(path, params), null, Void.class, RetryPolicy.DEFAULT);
+  }
+
+  public <T> T get(URI uri, Class<T> responseType) {
+    return execute("GET", uri, null, responseType, RetryPolicy.DEFAULT);
+  }
+
+  public <T> T get(URI uri, TypeReference<T> responseType) {
+    return executeWithTypeRef("GET", uri, null, responseType, RetryPolicy.DEFAULT);
+  }
+
+  public <T> T post(URI uri, Object body, Class<T> responseType) {
+    return execute("POST", uri, body, responseType, RetryPolicy.DEFAULT);
+  }
+
+  public <T> T post(URI uri, Object body, Class<T> responseType, RetryPolicy policy) {
+    return execute("POST", uri, body, responseType, policy);
+  }
+
+  public <T> T post(URI uri, Object body, TypeReference<T> responseType, RetryPolicy policy) {
+    return executeWithTypeRef("POST", uri, body, responseType, policy);
+  }
+
+  public <T> T patch(URI uri, Object body, Class<T> responseType) {
+    return execute("PATCH", uri, body, responseType, RetryPolicy.DEFAULT);
+  }
+
+  public <T> T patch(URI uri, Object body, Class<T> responseType, RetryPolicy policy) {
+    return execute("PATCH", uri, body, responseType, policy);
+  }
+
+  public JsonNode postForJsonNode(URI uri, Object body, RetryPolicy policy) {
+    return executeForJsonNode("POST", uri, body, policy);
+  }
+
+  public JsonNode patchForJsonNode(URI uri, Object body, RetryPolicy policy) {
+    return executeForJsonNode("PATCH", uri, body, policy);
+  }
+
+  public void delete(URI uri) {
+    execute("DELETE", uri, null, Void.class, RetryPolicy.DEFAULT);
+  }
+
+  public <T> T convertValue(JsonNode node, Class<T> targetType) {
+    try {
+      return objectMapper.treeToValue(node, targetType);
+    } catch (JsonProcessingException e) {
+      throw new ShareFileSerializationException("Failed to convert response body", e);
+    }
   }
 
   /**
@@ -179,16 +228,50 @@ public final class ShareFileHttpClient {
       Map<String, String> params,
       Class<T> responseType,
       RetryPolicy policy) {
+    return execute(method, buildUri(path, params), body, responseType, policy);
+  }
+
+  private <T> T executeWithTypeRef(
+      String method, URI uri, Object body, TypeReference<T> responseType, RetryPolicy policy) {
     String requestId = UUID.randomUUID().toString();
-    URI uri = buildUri(path, params);
     byte[] jsonBody = serializeBody(body);
 
     MetricsProvider.Timer timer = metrics.startTimer();
-    String entity = extractEntityName(path);
+    String entity = extractEntityName(uri.getPath());
 
     try {
       HttpTransport.HttpResponse response =
-          executeWithRetry(method, uri, jsonBody, requestId, policy);
+          executeWithRetry(method, resolveUri(uri), jsonBody, requestId, policy);
+
+      try (response) {
+        int status = response.statusCode();
+        metrics.recordRequest(timer, entity, method, status);
+
+        if (status == 204) {
+          return null;
+        }
+
+        byte[] responseBody = response.bodyBytes(MAX_JSON_RESPONSE_BYTES);
+        return deserializeWithTypeRef(responseBody, responseType);
+      }
+    } catch (ShareFileApiException e) {
+      timer.stop();
+      metrics.recordError(entity, method, e.getHttpStatus());
+      throw e;
+    }
+  }
+
+  private <T> T execute(
+      String method, URI uri, Object body, Class<T> responseType, RetryPolicy policy) {
+    String requestId = UUID.randomUUID().toString();
+    byte[] jsonBody = serializeBody(body);
+
+    MetricsProvider.Timer timer = metrics.startTimer();
+    String entity = extractEntityName(uri.getPath());
+
+    try {
+      HttpTransport.HttpResponse response =
+          executeWithRetry(method, resolveUri(uri), jsonBody, requestId, policy);
 
       try (response) {
         int status = response.statusCode();
@@ -208,30 +291,27 @@ public final class ShareFileHttpClient {
     }
   }
 
-  private <T> T executeWithTypeRef(
-      String method,
-      String path,
-      Object body,
-      Map<String, String> params,
-      TypeReference<T> responseType,
-      RetryPolicy policy) {
+  private JsonNode executeForJsonNode(String method, URI uri, Object body, RetryPolicy policy) {
     String requestId = UUID.randomUUID().toString();
-    URI uri = buildUri(path, params);
     byte[] jsonBody = serializeBody(body);
 
     MetricsProvider.Timer timer = metrics.startTimer();
-    String entity = extractEntityName(path);
+    String entity = extractEntityName(uri.getPath());
 
     try {
       HttpTransport.HttpResponse response =
-          executeWithRetry(method, uri, jsonBody, requestId, policy);
+          executeWithRetry(method, resolveUri(uri), jsonBody, requestId, policy);
 
       try (response) {
         int status = response.statusCode();
         metrics.recordRequest(timer, entity, method, status);
 
+        if (status == 204) {
+          return null;
+        }
+
         byte[] responseBody = response.bodyBytes(MAX_JSON_RESPONSE_BYTES);
-        return deserializeWithTypeRef(responseBody, responseType);
+        return deserializeTree(responseBody);
       }
     } catch (ShareFileApiException e) {
       timer.stop();
@@ -369,6 +449,19 @@ public final class ShareFileHttpClient {
     return URI.create(sb.toString());
   }
 
+  private URI resolveUri(URI uri) {
+    if (uri.isAbsolute()) {
+      return uri;
+    }
+    String path = uri.toString();
+    StringBuilder sb = new StringBuilder(baseUrl);
+    if (!path.startsWith("/")) {
+      sb.append('/');
+    }
+    sb.append(path);
+    return URI.create(sb.toString());
+  }
+
   private static String encodeUri(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
   }
@@ -397,6 +490,14 @@ public final class ShareFileHttpClient {
   private <T> T deserializeWithTypeRef(byte[] responseBody, TypeReference<T> type) {
     try {
       return objectMapper.readValue(responseBody, type);
+    } catch (IOException e) {
+      throw new ShareFileSerializationException("Failed to deserialize response body", e);
+    }
+  }
+
+  private JsonNode deserializeTree(byte[] responseBody) {
+    try {
+      return objectMapper.readTree(responseBody);
     } catch (IOException e) {
       throw new ShareFileSerializationException("Failed to deserialize response body", e);
     }

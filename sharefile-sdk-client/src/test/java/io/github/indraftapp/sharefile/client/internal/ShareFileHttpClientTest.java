@@ -144,17 +144,61 @@ class ShareFileHttpClientTest {
 
   @Test
   void status401ThrowsUnauthorizedException() {
-    // With maxRetries=0, 401 retry is still attempted once internally
+    OAuthToken initialToken = new OAuthToken();
+    initialToken.setAccessToken("stale-token");
+    initialToken.setRefreshToken("refresh-token");
+    initialToken.setExpiresIn(3600L);
+    initialToken.setExpiresAt(Instant.now().plusSeconds(3600));
+
+    TokenManager refreshingTokenManager =
+        new TokenManager(
+            ShareFileConfig.builder().subdomain("testco").build(),
+            "test-client-id",
+            "test-client-secret",
+            () ->
+                Credentials.builder()
+                    .clientCredentials("test-client-id", "test-client-secret")
+                    .passwordGrant("user", "pass")
+                    .build(),
+            mockTransport,
+            new InMemoryTokenStore(),
+            MAPPER,
+            initialToken);
+
+    httpClient =
+        new ShareFileHttpClient(
+            mockTransport,
+            refreshingTokenManager,
+            MAPPER,
+            RetryConfig.builder().maxRetries(0).build(),
+            metricsProvider,
+            BASE_URL,
+            Duration.ofSeconds(30));
+
     mockTransport.enqueueJsonResponse(
         401, "{\"code\":\"Unauthorized\",\"message\":{\"value\":\"Invalid token\"}}");
-    // After token refresh, still 401
+    mockTransport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "access_token": "fresh-token",
+          "refresh_token": "fresh-refresh",
+          "token_type": "bearer",
+          "expires_in": 3600
+        }
+        """);
     mockTransport.enqueueJsonResponse(
         401, "{\"code\":\"Unauthorized\",\"message\":{\"value\":\"Invalid token\"}}");
 
-    assertInstanceOf(
-        ShareFileUnauthorizedException.class,
-        assertThrows(
-            ShareFileApiException.class, () -> httpClient.get("/Items", Map.of(), TestItem.class)));
+    try {
+      assertInstanceOf(
+          ShareFileUnauthorizedException.class,
+          assertThrows(
+              ShareFileApiException.class,
+              () -> httpClient.get("/Items", Map.of(), TestItem.class)));
+    } finally {
+      refreshingTokenManager.close();
+    }
   }
 
   @Test
