@@ -1,0 +1,54 @@
+schema_version = 1
+
+[[filter]]
+command = "./gradlew :sharefile-sdk-client:test"
+strip_ansi = true
+strip_lines_matching = [
+    "^Downloading .*",
+    "^Downloaded .*",
+    "^Starting a Gradle Daemon.*",
+    "^The Gradle Daemon will be stopped.*",
+    "^BUILD SUCCESSFUL.*",
+    "^Configuration cache entry stored.*",
+    "^Configuration cache entry reused.*",
+    "^\\s*$"
+]
+keep_lines_matching = [
+    "FAILED",
+    "FAILURE:",
+    "Execution failed",
+    "There were failing tests",
+    "Tests failed",
+    "Caused by:",
+    "Exception",
+    "at .*\\(",
+    "> Task .*FAILED",
+    "BUILD FAILED",
+    "Test report:"
+]
+max_lines = 120
+on_empty = "✓ Gradle tests passed"
+
+[[filter]]
+command = "./gradlew :sharefile-sdk-client:build"
+strip_ansi = true
+strip_lines_matching = [
+    "^Downloading .*",
+    "^Downloaded .*",
+    "^Starting a Gradle Daemon.*",
+    "^Configuration cache entry stored.*",
+    "^Configuration cache entry reused.*",
+    "^\\s*$"
+]
+keep_lines_matching = [
+    "FAILED",
+    "FAILURE:",
+    "Execution failed",
+    "Caused by:",
+    "Exception",
+    "> Task .*FAILED",
+    "BUILD FAILED",
+    "BUILD SUCCESSFUL"
+]
+max_lines = 150
+on_empty = "✓ Gradle build completed"
