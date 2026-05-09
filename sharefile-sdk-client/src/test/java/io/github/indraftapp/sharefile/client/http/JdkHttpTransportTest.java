@@ -9,11 +9,12 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -184,6 +185,9 @@ class JdkHttpTransportTest {
             assertThat(exchange.getRequestMethod()).isEqualTo("POST");
             String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
             assertThat(contentType).isEqualTo("application/json");
+            assertThat(exchange.getRequestHeaders().getFirst("Content-Length"))
+                    .isEqualTo(String.valueOf(sentJson.getBytes(StandardCharsets.UTF_8).length));
+            assertThat(exchange.getRequestHeaders().getFirst("Transfer-Encoding")).isNull();
 
             String received;
             try (var is = exchange.getRequestBody()) {
@@ -217,6 +221,10 @@ class JdkHttpTransportTest {
         byte[] uploadData = "file-content-bytes-here".getBytes(StandardCharsets.UTF_8);
 
         server.createContext("/upload", exchange -> {
+            assertThat(exchange.getRequestHeaders().getFirst("Content-Length"))
+                    .isEqualTo(String.valueOf(uploadData.length));
+            assertThat(exchange.getRequestHeaders().getFirst("Transfer-Encoding")).isNull();
+
             String received;
             try (var is = exchange.getRequestBody()) {
                 received = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -297,8 +305,9 @@ class JdkHttpTransportTest {
         var request = HttpRequests.noBody("GET", localUri("/headers"), Duration.ofSeconds(5));
 
         try (var response = transport.execute(request)) {
-            // Should find header regardless of case
-            assertThat(response.headers().get("x-custom-header")).isNotNull();
+            assertThat(response.headers()).containsKey("x-custom-header");
+            assertThat(response.headers().get("x-custom-header")).containsExactly("test-value");
+            assertThat(response.headers()).doesNotContainKey("X-Custom-Header");
         }
     }
 
@@ -328,6 +337,9 @@ class JdkHttpTransportTest {
         server.createContext("/oauth/token", exchange -> {
             String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
             assertThat(contentType).isEqualTo("application/x-www-form-urlencoded");
+            assertThat(exchange.getRequestHeaders().getFirst("Content-Length"))
+                    .isEqualTo(String.valueOf(formBody.getBytes(StandardCharsets.UTF_8).length));
+            assertThat(exchange.getRequestHeaders().getFirst("Transfer-Encoding")).isNull();
 
             String received;
             try (var is = exchange.getRequestBody()) {
@@ -353,6 +365,34 @@ class JdkHttpTransportTest {
             assertThat(response.statusCode()).isEqualTo(200);
             String body = new String(response.bodyBytes(), StandardCharsets.UTF_8);
             assertThat(body).contains("access_token");
+        }
+    }
+
+    @Test
+    void responseBodyRead_timeoutClosesStreamingBody() throws Exception {
+        CountDownLatch headersSent = new CountDownLatch(1);
+        server.createContext("/slow-body", exchange -> {
+            exchange.sendResponseHeaders(200, 5);
+            exchange.getResponseBody().flush();
+            headersSent.countDown();
+            try {
+                Thread.sleep(500);
+                exchange.getResponseBody().write("hello".getBytes(StandardCharsets.UTF_8));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                exchange.close();
+            }
+        });
+        server.start();
+
+        var request = HttpRequests.noBody("GET", localUri("/slow-body"), Duration.ofMillis(100));
+
+        try (var response = transport.execute(request)) {
+            assertThat(headersSent.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThatThrownBy(response::bodyBytes)
+                    .isInstanceOf(ShareFileNetworkException.class)
+                    .hasMessageContaining("timed out while reading the response body");
         }
     }
 }
