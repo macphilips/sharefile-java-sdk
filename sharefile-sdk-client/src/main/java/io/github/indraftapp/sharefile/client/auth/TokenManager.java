@@ -120,7 +120,7 @@ public final class TokenManager implements AutoCloseable {
         .ifPresent(
             token -> {
               this.currentToken = token;
-              if (!token.isExpired()) {
+              if (hasUsableAccessToken(token)) {
                 scheduleProactiveRefresh(token);
               }
             });
@@ -150,6 +150,9 @@ public final class TokenManager implements AutoCloseable {
       OAuthToken initialToken) {
     this(config, clientId, clientSecret, credentialProvider, transport, tokenStore, objectMapper);
     if (initialToken != null) {
+      if (initialToken.getExpiresAt() == null && initialToken.getExpiresIn() != null) {
+        initialToken.computeExpiresAt();
+      }
       this.currentToken = initialToken;
       tokenStore.save(initialToken);
       scheduleProactiveRefresh(initialToken);
@@ -169,7 +172,7 @@ public final class TokenManager implements AutoCloseable {
     // Step 1: Fast path — check cached token with read lock
     tokenLock.readLock().lock();
     try {
-      if (currentToken != null && !currentToken.isExpired()) {
+      if (hasUsableAccessToken(currentToken)) {
         return currentToken.getAccessToken();
       }
     } finally {
@@ -180,26 +183,30 @@ public final class TokenManager implements AutoCloseable {
     tokenLock.writeLock().lock();
     try {
       // Double-check after acquiring write lock (another thread may have refreshed)
-      if (currentToken != null && !currentToken.isExpired()) {
+      if (hasUsableAccessToken(currentToken)) {
         return currentToken.getAccessToken();
       }
 
-      // Step 2: Try refresh if we have a refresh token
-      if (currentToken != null && currentToken.getRefreshToken() != null) {
-        try {
-          OAuthToken refreshed = performRefreshWithRetries();
-          applyToken(refreshed);
-          return refreshed.getAccessToken();
-        } catch (ShareFileAuthenticationException e) {
-          LOG.warn("Token refresh failed, falling back to full re-auth", e);
-          // Fall through to step 3
-        }
-      }
+      return refreshOrAuthenticate(false);
+    } finally {
+      tokenLock.writeLock().unlock();
+    }
+  }
 
-      // Step 3: Full authentication via CredentialProvider
-      OAuthToken token = performFullAuthentication();
-      applyToken(token);
-      return token.getAccessToken();
+  /**
+   * Forces a token refresh or full re-authentication even when a cached access token still appears
+   * locally valid.
+   *
+   * <p>This is used after a 401 response, where the server has rejected the current bearer token
+   * even though its local expiration timestamp may not have elapsed yet.
+   *
+   * @return a newly acquired access token
+   * @throws ShareFileAuthenticationException if refresh and full re-authentication both fail
+   */
+  public String refreshAccessToken() {
+    tokenLock.writeLock().lock();
+    try {
+      return refreshOrAuthenticate(true);
     } finally {
       tokenLock.writeLock().unlock();
     }
@@ -338,10 +345,7 @@ public final class TokenManager implements AutoCloseable {
       return;
     }
 
-    long refreshDelaySeconds = (long) (token.getExpiresIn() * PROACTIVE_REFRESH_RATIO);
-    if (refreshDelaySeconds <= 0) {
-      return;
-    }
+    long refreshDelaySeconds = computeRefreshDelaySeconds(token);
 
     scheduledRefresh =
         scheduler.schedule(this::proactiveRefresh, refreshDelaySeconds, TimeUnit.SECONDS);
@@ -421,6 +425,38 @@ public final class TokenManager implements AutoCloseable {
 
   private static String encode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
+  }
+
+  private String refreshOrAuthenticate(boolean forcedRefresh) {
+    if (currentToken != null && currentToken.getRefreshToken() != null) {
+      try {
+        OAuthToken refreshed = performRefreshWithRetries();
+        applyToken(refreshed);
+        return refreshed.getAccessToken();
+      } catch (ShareFileAuthenticationException e) {
+        if (forcedRefresh) {
+          LOG.warn("Forced token refresh failed, falling back to full re-auth", e);
+        } else {
+          LOG.warn("Token refresh failed, falling back to full re-auth", e);
+        }
+      }
+    }
+
+    OAuthToken token = performFullAuthentication();
+    applyToken(token);
+    return token.getAccessToken();
+  }
+
+  private long computeRefreshDelaySeconds(OAuthToken token) {
+    long expiresInSeconds = token.getExpiresIn();
+    long ratioDelaySeconds = (long) (expiresInSeconds * PROACTIVE_REFRESH_RATIO);
+    long bufferDelaySeconds =
+        expiresInSeconds - Math.max(0L, config.getTokenRefreshBuffer().getSeconds());
+    return Math.max(0L, Math.min(ratioDelaySeconds, bufferDelaySeconds));
+  }
+
+  private static boolean hasUsableAccessToken(OAuthToken token) {
+    return token != null && token.getExpiresAt() != null && !token.isExpired();
   }
 
   private static void sleepForRetry(Duration duration) {

@@ -15,6 +15,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
@@ -271,8 +272,7 @@ public final class ShareFileHttpClient {
       // 401: try token refresh once
       if (status == 401 && allowTokenRefresh) {
         LOG.debug("Received 401, refreshing token and retrying");
-        // Force a new token acquisition
-        tokenManager.getAccessToken(); // This may trigger refresh inside TokenManager
+        tokenManager.refreshAccessToken();
         return executeSingle(method, uri, jsonBody, requestId, false);
       }
 
@@ -370,8 +370,7 @@ public final class ShareFileHttpClient {
   }
 
   private static String encodeUri(String value) {
-    // Simple URL encoding for query parameter keys/values
-    return value.replace(" ", "%20").replace("+", "%2B").replace("'", "%27");
+    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
   }
 
   // ── Serialization ─────────────────────────────────────────────────────

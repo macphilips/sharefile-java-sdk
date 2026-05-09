@@ -209,6 +209,28 @@ class RetryEngineTest {
   }
 
   @Test
+  void deleteOn500DoesNotRetryByDefault() {
+    RetryConfig config =
+        RetryConfig.builder().maxRetries(3).initialBackoff(Duration.ofMillis(10)).build();
+    RetryEngine engine = new RetryEngine(config, metricsProvider);
+
+    AtomicInteger attempts = new AtomicInteger();
+    assertThrows(
+        ShareFileServerException.class,
+        () ->
+            engine.execute(
+                () -> {
+                  attempts.incrementAndGet();
+                  throw new RetryEngine.RetryableResponseException(
+                      500, -1, "InternalError", "Server error", "req-id", "DELETE", "/Items(1)");
+                },
+                "DELETE",
+                RetryPolicy.DEFAULT));
+
+    assertEquals(1, attempts.get());
+  }
+
+  @Test
   void connectionFailureRetriesExhausted() {
     RetryConfig config =
         RetryConfig.builder().maxRetries(3).initialBackoff(Duration.ofMillis(10)).build();

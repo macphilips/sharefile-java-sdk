@@ -20,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +30,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
@@ -292,6 +294,33 @@ class TokenManagerTest {
     assertEquals(0, credentialProvider.callCount.get());
   }
 
+  @Test
+  void cachedTokenWithoutExpiresAtTriggersRefreshInsteadOfBeingTrustedForever() {
+    OAuthToken persisted = new OAuthToken();
+    persisted.setAccessToken("persisted-access");
+    persisted.setRefreshToken("persisted-refresh");
+    persisted.setExpiresIn(3600L);
+    tokenStore.save(persisted);
+
+    mockTransport.enqueueTokenResponse("refreshed-access", "refreshed-refresh", 3600);
+
+    tokenManager =
+        new TokenManager(
+            config,
+            CLIENT_ID,
+            CLIENT_SECRET,
+            credentialProvider,
+            mockTransport,
+            tokenStore,
+            OBJECT_MAPPER);
+
+    String token = tokenManager.getAccessToken();
+
+    assertEquals("refreshed-access", token);
+    assertEquals(1, mockTransport.requests.size());
+    assertTrue(mockTransport.requests.get(0).body.contains("grant_type=refresh_token"));
+  }
+
   // ── Thread safety tests ───────────────────────────────────────────────
 
   @Test
@@ -392,6 +421,66 @@ class TokenManagerTest {
     assertEquals(0, credentialProvider.callCount.get());
   }
 
+  @Test
+  void refreshAccessTokenBypassesValidCachedToken() {
+    OAuthToken preExisting = new OAuthToken();
+    preExisting.setAccessToken("still-valid");
+    preExisting.setRefreshToken("refresh-me");
+    preExisting.setExpiresIn(3600L);
+    preExisting.setExpiresAt(Instant.now().plusSeconds(3600));
+
+    mockTransport.enqueueTokenResponse("new-access", "new-refresh", 3600);
+
+    tokenManager =
+        new TokenManager(
+            config,
+            CLIENT_ID,
+            CLIENT_SECRET,
+            credentialProvider,
+            mockTransport,
+            tokenStore,
+            OBJECT_MAPPER,
+            preExisting);
+
+    String token = tokenManager.refreshAccessToken();
+
+    assertEquals("new-access", token);
+    assertEquals(1, mockTransport.requests.size());
+    assertTrue(mockTransport.requests.get(0).body.contains("grant_type=refresh_token"));
+  }
+
+  @Test
+  void tokenRefreshBufferCanScheduleEarlierThanEightyPercent() throws Exception {
+    config =
+        ShareFileConfig.builder()
+            .subdomain("testcompany")
+            .tokenRefreshBuffer(Duration.ofSeconds(30))
+            .build();
+
+    OAuthToken preExisting = new OAuthToken();
+    preExisting.setAccessToken("buffer-token");
+    preExisting.setRefreshToken("buffer-refresh");
+    preExisting.setExpiresIn(100L);
+    preExisting.setExpiresAt(Instant.now().plusSeconds(100));
+
+    tokenManager =
+        new TokenManager(
+            config,
+            CLIENT_ID,
+            CLIENT_SECRET,
+            credentialProvider,
+            mockTransport,
+            tokenStore,
+            OBJECT_MAPPER,
+            preExisting);
+
+    ScheduledFuture<?> scheduledRefresh = scheduledRefresh(tokenManager);
+
+    long delaySeconds = scheduledRefresh.getDelay(TimeUnit.SECONDS);
+    assertTrue(delaySeconds <= 70, "Expected refresh delay to honor 30s buffer");
+    assertTrue(delaySeconds >= 67, "Unexpectedly short delay: " + delaySeconds);
+  }
+
   // ── Close/lifecycle tests ─────────────────────────────────────────────
 
   @Test
@@ -426,6 +515,12 @@ class TokenManagerTest {
         mockTransport,
         tokenStore,
         OBJECT_MAPPER);
+  }
+
+  private static ScheduledFuture<?> scheduledRefresh(TokenManager tokenManager) throws Exception {
+    var field = TokenManager.class.getDeclaredField("scheduledRefresh");
+    field.setAccessible(true);
+    return (ScheduledFuture<?>) field.get(tokenManager);
   }
 
   /**

@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 final class RetryEngine {
 
   private static final Logger LOG = LoggerFactory.getLogger(RetryEngine.class);
-  private static final Set<String> IDEMPOTENT_METHODS = Set.of("GET", "PUT", "HEAD", "DELETE");
+  private static final Set<String> IDEMPOTENT_METHODS = Set.of("GET", "PUT", "HEAD");
   private static final int MAX_CONNECTION_RETRIES = 2;
   private static final List<Duration> RATE_LIMIT_DEFAULTS =
       List.of(Duration.ofSeconds(5), Duration.ofSeconds(10), Duration.ofSeconds(20));

@@ -1,6 +1,5 @@
 package io.github.indraftapp.sharefile.core.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Duration;
@@ -31,7 +30,8 @@ public class OAuthToken {
   @JsonProperty("expires_in")
   private Long expiresIn;
 
-  @JsonIgnore private Instant expiresAt;
+  @JsonProperty("expires_at")
+  private Instant expiresAt;
 
   public String getAccessToken() {
     return accessToken;
