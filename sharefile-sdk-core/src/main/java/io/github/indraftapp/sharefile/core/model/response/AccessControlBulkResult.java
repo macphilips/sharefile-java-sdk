@@ -5,6 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
+/**
+ * Response payload describing the outcome of a bulk access-control operation.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AccessControlBulkResult {
 

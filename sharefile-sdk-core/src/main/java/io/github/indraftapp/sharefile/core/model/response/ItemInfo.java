@@ -3,6 +3,9 @@ package io.github.indraftapp.sharefile.core.model.response;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Response payload containing folder and root-location metadata for an item.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ItemInfo {
 

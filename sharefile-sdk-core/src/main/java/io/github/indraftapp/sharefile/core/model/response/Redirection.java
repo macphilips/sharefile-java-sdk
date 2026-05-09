@@ -5,6 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
 
+/**
+ * Response payload describing a redirect target for an item resource.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Redirection {
 

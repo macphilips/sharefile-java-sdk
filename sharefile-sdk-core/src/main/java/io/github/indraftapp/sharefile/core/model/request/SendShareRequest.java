@@ -6,6 +6,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Request payload for creating and sending a ShareFile share.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SendShareRequest {
 

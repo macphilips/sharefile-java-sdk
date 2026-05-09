@@ -3,6 +3,9 @@ package io.github.indraftapp.sharefile.core.model.enums;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+/**
+ * Represents the OAuth grant types supported by the SDK.
+ */
 public enum GrantType {
 
     AUTHORIZATION_CODE("authorization_code"),

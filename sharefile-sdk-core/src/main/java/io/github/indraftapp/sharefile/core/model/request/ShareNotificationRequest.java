@@ -5,6 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
+/**
+ * Request payload for sending notifications about an existing ShareFile share.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ShareNotificationRequest {
 

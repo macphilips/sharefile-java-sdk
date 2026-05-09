@@ -7,6 +7,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Duration;
 import java.time.Instant;
 
+/**
+ * Represents an OAuth token response returned by ShareFile authentication endpoints.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OAuthToken {
 
@@ -99,7 +102,7 @@ public class OAuthToken {
     }
 
     /**
-     * Computes the expiration timestamp based on the current time and the expiresIn value.
+     * Computes the absolute expiration timestamp from the current clock time and the {@code expires_in} value.
      */
     public void computeExpiresAt() {
         if (expiresIn != null) {
@@ -108,14 +111,14 @@ public class OAuthToken {
     }
 
     /**
-     * Returns true if the token has expired.
+     * Returns {@code true} when the token expiration timestamp is known and already in the past.
      */
     public boolean isExpired() {
         return expiresAt != null && Instant.now().isAfter(expiresAt);
     }
 
     /**
-     * Returns true if the token will expire within the given buffer duration.
+     * Returns {@code true} when the token will expire within the supplied buffer duration.
      */
     public boolean isExpiringSoon(Duration buffer) {
         if (expiresAt == null) {

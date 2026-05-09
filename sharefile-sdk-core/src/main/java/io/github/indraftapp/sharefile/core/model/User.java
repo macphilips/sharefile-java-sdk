@@ -10,6 +10,9 @@ import io.github.indraftapp.sharefile.core.model.response.UserSecurity;
 
 import java.util.List;
 
+/**
+ * Represents a ShareFile user entity.
+ */
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.CUSTOM,
         include = As.EXISTING_PROPERTY,

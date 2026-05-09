@@ -2,6 +2,9 @@ package io.github.indraftapp.sharefile.core.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Represents a metadata entry associated with a ShareFile entity.
+ */
 public class Metadata extends ODataEntity {
 
     @JsonProperty("Name")

@@ -5,6 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
+/**
+ * Request payload for deleting multiple ShareFile items.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class BulkDeleteRequest {
 

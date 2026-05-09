@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
 
+/**
+ * Represents a favorite item entry for a ShareFile user.
+ */
 public class Favorite extends ODataEntity {
 
     @JsonProperty("Item")

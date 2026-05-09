@@ -5,6 +5,9 @@ import io.github.indraftapp.sharefile.core.model.response.AccountPreferences;
 import io.github.indraftapp.sharefile.core.model.response.Branding;
 import io.github.indraftapp.sharefile.core.model.response.SSOAccountProvider;
 
+/**
+ * Represents a ShareFile account and its account-level settings.
+ */
 public class Account extends ODataEntity {
 
     @JsonProperty("Subdomain")

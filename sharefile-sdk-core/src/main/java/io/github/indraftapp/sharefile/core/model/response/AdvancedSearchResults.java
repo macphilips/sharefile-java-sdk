@@ -6,6 +6,9 @@ import io.github.indraftapp.sharefile.core.model.Item;
 
 import java.util.List;
 
+/**
+ * Response payload for ShareFile advanced-search results.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AdvancedSearchResults {
 

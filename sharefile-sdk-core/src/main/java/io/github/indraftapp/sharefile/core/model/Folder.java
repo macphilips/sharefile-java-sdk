@@ -6,6 +6,9 @@ import io.github.indraftapp.sharefile.core.model.response.Redirection;
 
 import java.util.List;
 
+/**
+ * Represents a ShareFile folder item and its folder-specific metadata.
+ */
 public class Folder extends Item {
 
     @JsonProperty("FileCount")

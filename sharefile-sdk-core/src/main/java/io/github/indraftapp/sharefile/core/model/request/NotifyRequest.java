@@ -5,6 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
+/**
+ * Request payload for notifying ShareFile users with a custom message.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class NotifyRequest {
 

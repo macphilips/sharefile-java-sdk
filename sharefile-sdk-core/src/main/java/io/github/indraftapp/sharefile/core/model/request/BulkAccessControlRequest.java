@@ -6,6 +6,9 @@ import io.github.indraftapp.sharefile.core.model.AccessControl;
 
 import java.util.List;
 
+/**
+ * Request payload for applying access-control changes to multiple ShareFile principals.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class BulkAccessControlRequest {
 

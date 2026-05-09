@@ -2,6 +2,9 @@ package io.github.indraftapp.sharefile.core.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Represents a ShareFile user with account-level administrative capabilities.
+ */
 public class AccountUser extends User {
 
     @JsonProperty("StorageQuotaLimitGB")

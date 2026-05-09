@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
+/**
+ * Represents a ShareFile group and its associated contacts.
+ */
 public class Group extends ODataEntity {
 
     @JsonProperty("Name")

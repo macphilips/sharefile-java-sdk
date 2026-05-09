@@ -2,6 +2,9 @@ package io.github.indraftapp.sharefile.core.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Represents a ShareFile share recipient or alias entry.
+ */
 public class ShareAlias extends ODataEntity {
 
     @JsonProperty("Email")

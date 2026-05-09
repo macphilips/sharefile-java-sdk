@@ -3,6 +3,9 @@ package io.github.indraftapp.sharefile.core.model.enums;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+/**
+ * Represents ShareFile tree-operation modes for copy, move, and manage workflows.
+ */
 public enum TreeMode {
 
     COPY("Copy"),

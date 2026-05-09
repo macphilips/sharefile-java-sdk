@@ -3,6 +3,9 @@ package io.github.indraftapp.sharefile.core.model.enums;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+/**
+ * Represents the ShareFile upload methods available for a transfer.
+ */
 public enum UploadMethod {
 
     STANDARD("Standard"),

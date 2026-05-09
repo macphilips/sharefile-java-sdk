@@ -3,6 +3,9 @@ package io.github.indraftapp.sharefile.core.model.response;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Response payload describing the resource context for a webhook subscription.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SubscriptionContext {
 

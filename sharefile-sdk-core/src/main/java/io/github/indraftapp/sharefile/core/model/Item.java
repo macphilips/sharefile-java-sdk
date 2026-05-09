@@ -10,6 +10,9 @@ import io.github.indraftapp.sharefile.core.model.enums.PreviewStatus;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Represents a ShareFile item entity, including files, folders, notes, and links.
+ */
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.CUSTOM,
         include = As.EXISTING_PROPERTY,

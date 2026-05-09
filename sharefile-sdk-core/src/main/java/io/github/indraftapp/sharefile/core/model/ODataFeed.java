@@ -7,6 +7,11 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Represents an OData collection response containing items and paging metadata.
+ *
+ * @param <T> the entity type contained in the feed
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ODataFeed<T> implements Iterable<T> {
 
@@ -54,10 +59,16 @@ public class ODataFeed<T> implements Iterable<T> {
         this.value = value;
     }
 
+    /**
+     * Returns {@code true} when the feed exposes an OData next-page link.
+     */
     public boolean hasNextPage() {
         return nextLink != null && !nextLink.isEmpty();
     }
 
+    /**
+     * Returns the items in this feed, or an empty list when no items were returned.
+     */
     public List<T> getItems() {
         return value != null ? value : Collections.emptyList();
     }

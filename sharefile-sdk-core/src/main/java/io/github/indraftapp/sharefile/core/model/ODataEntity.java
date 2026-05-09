@@ -3,6 +3,9 @@ package io.github.indraftapp.sharefile.core.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Base type for ShareFile OData entities that expose standard metadata fields.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class ODataEntity {
 

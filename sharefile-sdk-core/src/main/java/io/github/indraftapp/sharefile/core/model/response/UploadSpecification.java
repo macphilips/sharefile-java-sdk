@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.indraftapp.sharefile.core.model.enums.UploadMethod;
 
+/**
+ * Response payload containing ShareFile upload endpoints and resume metadata.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UploadSpecification {
 

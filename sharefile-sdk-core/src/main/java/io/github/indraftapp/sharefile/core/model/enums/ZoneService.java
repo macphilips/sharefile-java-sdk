@@ -3,6 +3,9 @@ package io.github.indraftapp.sharefile.core.model.enums;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+/**
+ * Represents the service types exposed by a ShareFile storage zone.
+ */
 public enum ZoneService {
 
     STORAGE_ZONE("StorageZone"),

@@ -2,6 +2,9 @@ package io.github.indraftapp.sharefile.core.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Represents a device known to a ShareFile account.
+ */
 public class Device extends ODataEntity {
 
     @JsonProperty("DeviceName")

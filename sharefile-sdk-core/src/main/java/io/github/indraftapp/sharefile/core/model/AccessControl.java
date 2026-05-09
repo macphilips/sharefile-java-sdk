@@ -2,6 +2,9 @@ package io.github.indraftapp.sharefile.core.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Represents access-control permissions granted to a ShareFile principal for an item.
+ */
 public class AccessControl extends ODataEntity {
 
     @JsonProperty("Principal")

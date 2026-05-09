@@ -6,6 +6,9 @@ import io.github.indraftapp.sharefile.core.model.enums.ShareType;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Represents a ShareFile share and its sharing configuration.
+ */
 public class Share extends ODataEntity {
 
     @JsonProperty("ShareType")

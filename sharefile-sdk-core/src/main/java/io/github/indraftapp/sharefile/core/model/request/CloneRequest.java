@@ -3,6 +3,9 @@ package io.github.indraftapp.sharefile.core.model.request;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Request payload for cloning a ShareFile item into another location.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CloneRequest {
 

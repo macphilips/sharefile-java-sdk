@@ -2,6 +2,9 @@ package io.github.indraftapp.sharefile.core.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Represents a server-side ShareFile asynchronous operation.
+ */
 public class AsyncOperation extends ODataEntity {
 
     @JsonProperty("State")
@@ -38,7 +41,9 @@ public class AsyncOperation extends ODataEntity {
     }
 
     /**
-     * Returns true if the operation is in a terminal state (Completed, Error, or Cancelled).
+     * Returns {@code true} when the operation has reached a terminal state and no further polling is required.
+     *
+     * @return {@code true} when the operation state is terminal
      */
     public boolean isTerminal() {
         return "Completed".equals(state) || "Error".equals(state) || "Cancelled".equals(state);

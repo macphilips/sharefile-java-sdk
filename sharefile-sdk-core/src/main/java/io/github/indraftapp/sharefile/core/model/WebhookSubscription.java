@@ -5,6 +5,9 @@ import io.github.indraftapp.sharefile.core.model.response.SubscriptionContext;
 
 import java.util.List;
 
+/**
+ * Represents a ShareFile webhook subscription.
+ */
 public class WebhookSubscription extends ODataEntity {
 
     @JsonProperty("SubscriptionContext")

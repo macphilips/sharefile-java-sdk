@@ -5,6 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
+/**
+ * Request payload for restoring multiple ShareFile items.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class BulkRestoreRequest {
 

@@ -3,6 +3,9 @@ package io.github.indraftapp.sharefile.core.model.enums;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+/**
+ * Represents the availability state of an item preview.
+ */
 public enum PreviewStatus {
 
     NONE("None"),
