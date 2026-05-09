@@ -7,7 +7,6 @@ import io.github.indraftapp.sharefile.core.model.AccessControl;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
 import io.github.indraftapp.sharefile.core.model.OperationResult;
 import io.github.indraftapp.sharefile.core.model.request.BulkAccessControlRequest;
-import io.github.indraftapp.sharefile.core.model.request.BulkDeleteRequest;
 import io.github.indraftapp.sharefile.core.model.request.CloneRequest;
 import io.github.indraftapp.sharefile.core.model.request.NotifyRequest;
 import io.github.indraftapp.sharefile.core.model.response.AccessControlBulkResult;
@@ -94,7 +93,9 @@ public final class AccessControlsClient {
   public AccessControlBulkResult bulkSetForPrincipal(
       String principalId, BulkAccessControlRequest request, RetryPolicy policy) {
     return executor.post(
-        executor.entityActionUri(principalId, "BulkSet"),
+        executor.uriWithParams(
+            executor.collectionActionUri("BulkSetForPrincipal"),
+            Map.of("principalId", principalId)),
         request,
         AccessControlBulkResult.class,
         policy);
@@ -107,9 +108,10 @@ public final class AccessControlsClient {
   public void clone(
       String folderId, String principalId, List<String> clonePrincipalIds, RetryPolicy policy) {
     CloneRequest request = new CloneRequest();
-    request.setTargetItemId(folderId);
+    request.setFolderId(folderId);
+    request.setPrincipalId(principalId);
     request.setClonePrincipalIds(clonePrincipalIds);
-    executor.post(executor.entityActionUri(principalId, "Clone"), request, Void.class, policy);
+    executor.post(executor.collectionActionUri("Clone"), request, Void.class, policy);
   }
 
   public void bulkDelete(String itemId, List<String> principalIds) {
@@ -117,9 +119,7 @@ public final class AccessControlsClient {
   }
 
   public void bulkDelete(String itemId, List<String> principalIds, RetryPolicy policy) {
-    BulkDeleteRequest request = new BulkDeleteRequest();
-    request.setItemIds(principalIds);
-    executor.post(itemScopedActionUri(itemId, "BulkDelete"), request, Void.class, policy);
+    executor.post(itemScopedActionUri(itemId, "BulkDelete"), principalIds, Void.class, policy);
   }
 
   public void notifyUsers(String itemId, List<String> userIds, String message) {
@@ -130,7 +130,7 @@ public final class AccessControlsClient {
     NotifyRequest request = new NotifyRequest();
     request.setUserIds(userIds);
     request.setMessage(message);
-    executor.post(itemScopedActionUri(itemId, "Notify"), request, Void.class, policy);
+    executor.post(itemScopedActionUri(itemId, "NotifyUsers"), request, Void.class, policy);
   }
 
   private URI compositeKeyUri(String principalId, String itemId) {

@@ -6,14 +6,17 @@ import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Request payload for cloning a ShareFile item into another location. */
+/** Request payload for cloning access-control assignments into another location. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
 public class CloneRequest {
 
-  @JsonProperty("TargetItemId")
-  private String targetItemId;
+  @JsonProperty("FolderId")
+  private String folderId;
+
+  @JsonProperty("PrincipalId")
+  private String principalId;
 
   @JsonProperty("Overwrite")
   private Boolean overwrite;

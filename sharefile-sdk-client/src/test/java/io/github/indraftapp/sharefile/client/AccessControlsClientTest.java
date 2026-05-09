@@ -157,12 +157,14 @@ class AccessControlsClientTest {
           ClientTestSupport.BASE_URL + "/Items(item-1)/AccessControls/BulkSet",
           transport.requests.get(0).uri().toString());
       assertEquals(
-          ClientTestSupport.BASE_URL + "/AccessControls(principal-9)/BulkSet",
+          ClientTestSupport.BASE_URL
+              + "/AccessControls/BulkSetForPrincipal?principalId=principal-9",
           transport.requests.get(1).uri().toString());
       assertEquals(
-          ClientTestSupport.BASE_URL + "/AccessControls(principal-9)/Clone",
+          ClientTestSupport.BASE_URL + "/AccessControls/Clone",
           transport.requests.get(2).uri().toString());
-      assertTrue(transport.requests.get(2).body().contains("\"TargetItemId\":\"folder-2\""));
+      assertTrue(transport.requests.get(2).body().contains("\"FolderId\":\"folder-2\""));
+      assertTrue(transport.requests.get(2).body().contains("\"PrincipalId\":\"principal-9\""));
       assertTrue(
           transport
               .requests
@@ -172,14 +174,9 @@ class AccessControlsClientTest {
       assertEquals(
           ClientTestSupport.BASE_URL + "/Items(item-1)/AccessControls/BulkDelete",
           transport.requests.get(3).uri().toString());
-      assertTrue(
-          transport
-              .requests
-              .get(3)
-              .body()
-              .contains("\"ItemIds\":[\"principal-1\",\"principal-2\"]"));
+      assertEquals("[\"principal-1\",\"principal-2\"]", transport.requests.get(3).body());
       assertEquals(
-          ClientTestSupport.BASE_URL + "/Items(item-1)/AccessControls/Notify",
+          ClientTestSupport.BASE_URL + "/Items(item-1)/AccessControls/NotifyUsers",
           transport.requests.get(4).uri().toString());
       assertTrue(transport.requests.get(4).body().contains("\"UserIds\":[\"user-1\",\"user-2\"]"));
       assertTrue(transport.requests.get(4).body().contains("\"Message\":\"hello\""));
