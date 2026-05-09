@@ -15,6 +15,6 @@ public class NotifyRequest {
   @JsonProperty("UserIds")
   private List<String> userIds;
 
-  @JsonProperty("Message")
+  @JsonProperty("CustomMessage")
   private String message;
 }

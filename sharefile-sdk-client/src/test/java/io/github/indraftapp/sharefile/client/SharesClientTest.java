@@ -43,6 +43,10 @@ class SharesClientTest {
           ClientTestSupport.BASE_URL + "/Shares", transport.requests.get(0).uri().toString());
       assertEquals(
           ClientTestSupport.BASE_URL + "/Shares", transport.requests.get(1).uri().toString());
+      assertTrue(transport.requests.get(0).body().contains("\"ShareType\":\"Send\""));
+      assertTrue(transport.requests.get(0).body().contains("\"Items\":[{\"Id\":\"item-1\"}]"));
+      assertTrue(transport.requests.get(1).body().contains("\"ShareType\":\"Request\""));
+      assertTrue(transport.requests.get(1).body().contains("\"Parent\":{\"Id\":\"folder-1\"}"));
     }
   }
 
@@ -91,7 +95,7 @@ class SharesClientTest {
           ClientTestSupport.BASE_URL + "/Shares(share-1)/Items",
           transport.requests.get(3).uri().toString());
       assertEquals(
-          ClientTestSupport.BASE_URL + "/Shares(share-1)/Download",
+          ClientTestSupport.BASE_URL + "/Shares(share-1)/Download?redirect=false",
           transport.requests.get(4).uri().toString());
     }
   }

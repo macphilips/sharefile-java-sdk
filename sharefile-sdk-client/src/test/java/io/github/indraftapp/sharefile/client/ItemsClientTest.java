@@ -87,6 +87,38 @@ class ItemsClientTest {
   }
 
   @Test
+  void versionsAndInfoUseDocumentedApiReferenceEndpoints() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "value": [
+            {
+              "odata.type": "ShareFile.Api.Models.File",
+              "Id": "file-1",
+              "Name": "v1.txt"
+            }
+          ]
+        }
+        """);
+    transport.enqueueJsonResponse(200, "{\"FileCount\":1,\"ChildCount\":2}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      ODataFeed<Item> versions = context.itemsClient().getVersions("file-1");
+      context.itemsClient().getFolderAccessInfo("folder-2");
+
+      assertEquals(1, versions.getItems().size());
+      assertEquals(
+          ClientTestSupport.BASE_URL + "/Items(file-1)/Stream",
+          transport.requests.get(0).uri().toString());
+      assertEquals(
+          ClientTestSupport.BASE_URL + "/Items(folder-2)/Info",
+          transport.requests.get(1).uri().toString());
+    }
+  }
+
+  @Test
   void searchBuildsGlobalAndScopedEndpoints() {
     ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
     transport.enqueueJsonResponse(200, "{\"Results\":[],\"TotalCount\":0,\"TimedOut\":false}");
@@ -99,11 +131,11 @@ class ItemsClientTest {
       assertEquals(0, global.getTotalCount());
       assertEquals(0, scoped.getTotalCount());
       assertEquals(
-          ClientTestSupport.BASE_URL + "/Items/Search?q=budget%202026&%24top=25&%24skip=10",
+          ClientTestSupport.BASE_URL + "/Items/Search?query=budget%202026&maxResults=25&skip=10",
           transport.requests.get(0).uri().toString());
       assertEquals(
           ClientTestSupport.BASE_URL
-              + "/Items(folder-99)/Search?q=budget%202026&%24top=25&%24skip=10",
+              + "/Items(folder-99)/Search?query=budget%202026&maxResults=25&skip=10",
           transport.requests.get(1).uri().toString());
     }
   }
@@ -220,12 +252,12 @@ class ItemsClientTest {
       assertEquals(
           ClientTestSupport.BASE_URL + "/Items(parent-1)/BulkDelete?deletePermanently=true",
           transport.requests.get(1).uri().toString());
-      assertTrue(transport.requests.get(1).body().contains("\"ItemIds\":[\"item-1\",\"item-2\"]"));
+      assertEquals("[\"item-1\",\"item-2\"]", transport.requests.get(1).body());
 
       assertEquals(
           ClientTestSupport.BASE_URL + "/Items/BulkRestore",
           transport.requests.get(2).uri().toString());
-      assertTrue(transport.requests.get(2).body().contains("\"ItemIds\":[\"item-3\",\"item-4\"]"));
+      assertTrue(transport.requests.get(2).body().contains("\"ids\":[\"item-3\",\"item-4\"]"));
 
       assertEquals(
           ClientTestSupport.BASE_URL + "/Items(file-1)/CheckOut",

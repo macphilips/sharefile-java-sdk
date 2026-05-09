@@ -7,7 +7,6 @@ import io.github.indraftapp.sharefile.core.model.Item;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
 import io.github.indraftapp.sharefile.core.model.OperationResult;
 import io.github.indraftapp.sharefile.core.model.request.AdvancedSearchRequest;
-import io.github.indraftapp.sharefile.core.model.request.BulkDeleteRequest;
 import io.github.indraftapp.sharefile.core.model.request.BulkRestoreRequest;
 import io.github.indraftapp.sharefile.core.model.request.CheckInRequest;
 import io.github.indraftapp.sharefile.core.model.request.FolderCreateRequest;
@@ -88,12 +87,11 @@ public final class ItemsClient {
 
   public ODataFeed<Item> getVersions(String id) {
     return executor.getCollection(
-        executor.entityActionUri(id, "Versions"), ODataQuery.empty(), ITEM_FEED_TYPE);
+        executor.entityActionUri(id, "Stream"), ODataQuery.empty(), ITEM_FEED_TYPE);
   }
 
   public ItemInfo getFolderAccessInfo(String id) {
-    return executor.get(
-        executor.entityActionUri(id, "AccessInfo"), ODataQuery.empty(), ItemInfo.class);
+    return executor.get(executor.entityActionUri(id, "Info"), ODataQuery.empty(), ItemInfo.class);
   }
 
   public Redirection getThumbnail(String id, int size) {
@@ -180,13 +178,11 @@ public final class ItemsClient {
 
   public void bulkDelete(
       String parentId, List<String> itemIds, boolean permanently, RetryPolicy policy) {
-    BulkDeleteRequest request = new BulkDeleteRequest();
-    request.setItemIds(itemIds);
     URI uri = executor.entityActionUri(parentId, "BulkDelete");
     if (permanently) {
       uri = executor.uriWithParams(uri, Map.of("deletePermanently", Boolean.TRUE.toString()));
     }
-    executor.post(uri, request, Void.class, policy);
+    executor.post(uri, itemIds, Void.class, policy);
   }
 
   public void bulkRestore(List<String> itemIds) {
@@ -227,12 +223,12 @@ public final class ItemsClient {
 
   private static Map<String, String> searchParams(String query, Integer maxResults, Integer skip) {
     Map<String, String> params = new LinkedHashMap<>();
-    params.put("q", query);
+    params.put("query", query);
     if (maxResults != null) {
-      params.put("$top", maxResults.toString());
+      params.put("maxResults", maxResults.toString());
     }
     if (skip != null) {
-      params.put("$skip", skip.toString());
+      params.put("skip", skip.toString());
     }
     return params;
   }

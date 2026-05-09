@@ -11,6 +11,7 @@ import io.github.indraftapp.sharefile.core.model.request.SendShareRequest;
 import io.github.indraftapp.sharefile.core.model.request.ShareNotificationRequest;
 import io.github.indraftapp.sharefile.core.model.response.DownloadSpecification;
 import io.github.indraftapp.sharefile.core.odata.ODataQuery;
+import java.util.Map;
 import java.util.Objects;
 
 /** Explicit ShareFile resource client for `/Shares` endpoints. */
@@ -84,7 +85,8 @@ public final class SharesClient {
 
   public DownloadSpecification downloadItems(String shareId) {
     return executor.get(
-        executor.entityActionUri(shareId, "Download"),
+        executor.uriWithParams(
+            executor.entityActionUri(shareId, "Download"), Map.of("redirect", "false")),
         ODataQuery.empty(),
         DownloadSpecification.class);
   }

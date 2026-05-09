@@ -12,6 +12,6 @@ import lombok.Setter;
 @Setter
 public class BulkRestoreRequest {
 
-  @JsonProperty("ItemIds")
+  @JsonProperty("ids")
   private List<String> itemIds;
 }

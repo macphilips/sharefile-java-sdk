@@ -1,9 +1,11 @@
 package io.github.indraftapp.sharefile.core.model.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 import java.util.List;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,7 +15,8 @@ import lombok.Setter;
 @Setter
 public class SendShareRequest {
 
-  @JsonProperty("Items")
+  @Getter(AccessLevel.NONE)
+  @Setter(AccessLevel.NONE)
   private List<String> items;
 
   @JsonProperty("Recipients")
@@ -39,4 +42,29 @@ public class SendShareRequest {
 
   @JsonProperty("MaxDownloads")
   private Integer maxDownloads;
+
+  @JsonProperty("ShareType")
+  public String getShareType() {
+    return "Send";
+  }
+
+  @JsonProperty("Items")
+  public List<ItemReference> getSerializedItems() {
+    if (items == null) {
+      return null;
+    }
+    return items.stream().map(ItemReference::new).toList();
+  }
+
+  @JsonIgnore
+  public List<String> getItems() {
+    return items;
+  }
+
+  public void setItems(List<String> items) {
+    this.items = items;
+  }
+
+  /** Minimal item reference shape required by the send-share API. */
+  public record ItemReference(@JsonProperty("Id") String id) {}
 }

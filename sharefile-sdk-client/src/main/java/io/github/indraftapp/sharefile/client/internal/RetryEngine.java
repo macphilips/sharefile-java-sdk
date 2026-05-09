@@ -91,11 +91,7 @@ final class RetryEngine {
     if (!config.getRetryableStatuses().contains(status)) {
       return false;
     }
-    // 429 is always retryable regardless of method
-    if (status == 429) {
-      return true;
-    }
-    // For 5xx: only retry idempotent methods unless explicitly opted in
+    // Retry only idempotent methods unless explicitly opted in for non-idempotent calls.
     return isIdempotent(method) || isNonIdempotentRetryAllowed(policy);
   }
 

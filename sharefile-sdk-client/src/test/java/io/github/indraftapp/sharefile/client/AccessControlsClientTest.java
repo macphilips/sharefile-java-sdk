@@ -179,7 +179,7 @@ class AccessControlsClientTest {
           ClientTestSupport.BASE_URL + "/Items(item-1)/AccessControls/NotifyUsers",
           transport.requests.get(4).uri().toString());
       assertTrue(transport.requests.get(4).body().contains("\"UserIds\":[\"user-1\",\"user-2\"]"));
-      assertTrue(transport.requests.get(4).body().contains("\"Message\":\"hello\""));
+      assertTrue(transport.requests.get(4).body().contains("\"CustomMessage\":\"hello\""));
     }
   }
 

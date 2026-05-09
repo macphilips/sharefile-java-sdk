@@ -3,9 +3,11 @@ package io.github.indraftapp.sharefile.client;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.indraftapp.sharefile.client.internal.RecordingMetricsProvider;
+import io.github.indraftapp.sharefile.core.exception.ShareFileDownloadUrlExpiredException;
 import io.github.indraftapp.sharefile.core.model.enums.UploadMethod;
 import io.github.indraftapp.sharefile.core.model.response.UploadResult;
 import java.nio.charset.StandardCharsets;
@@ -192,6 +194,26 @@ class TransferClientTest {
       assertFalse(transport.requests.get(1).headers().containsKey("Authorization"));
       assertTrue(metrics.values.contains(MetricNames.TRANSFER_DOWNLOAD_BYTES));
       assertTrue(metrics.values.contains(MetricNames.TRANSFER_DOWNLOAD_DURATION));
+    }
+  }
+
+  @Test
+  void failedDownloadDoesNotTruncateExistingTarget() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        "{\"DownloadUrl\":\"https://storage.example.com/download.bin\",\"PrepStatus\":\"Ready\"}");
+    transport.enqueueResponse(403, "expired".getBytes(StandardCharsets.UTF_8));
+
+    Path target =
+        Files.writeString(tempDir.resolve("existing.bin"), "keep-me", StandardCharsets.UTF_8);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      assertThrows(
+          ShareFileDownloadUrlExpiredException.class,
+          () -> context.transferClient().download("item-1", target, DownloadOptions.defaults()));
+
+      assertEquals("keep-me", Files.readString(target, StandardCharsets.UTF_8));
     }
   }
 

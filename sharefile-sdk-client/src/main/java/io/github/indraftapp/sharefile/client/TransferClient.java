@@ -273,10 +273,8 @@ public final class TransferClient {
     metrics.incrementCounter(MetricNames.TRANSFER_ACTIVE, "type", "download", "event", "start");
     log.info("Starting download to {}", target);
     try (HttpTransport.HttpResponse response =
-            storageTransport.execute(
-                newStorageRequest("GET", downloadUri, null, config.getDownloadTimeout()));
-        InputStream in = response.bodyStream();
-        OutputStream out = Files.newOutputStream(target)) {
+        storageTransport.execute(
+            newStorageRequest("GET", downloadUri, null, config.getDownloadTimeout()))) {
       int status = response.statusCode();
       if (status >= 400) {
         if (status == 401 || status == 403) {
@@ -285,12 +283,15 @@ public final class TransferClient {
         throw new ShareFileDownloadException("Storage download failed with HTTP " + status);
       }
 
-      byte[] buffer = new byte[DOWNLOAD_BUFFER_SIZE];
-      int read;
-      while ((read = in.read(buffer)) != -1) {
-        ensureNotCancelled(cancelled, tracker);
-        out.write(buffer, 0, read);
-        tracker.addBytes(read);
+      try (InputStream in = response.bodyStream();
+          OutputStream out = Files.newOutputStream(target)) {
+        byte[] buffer = new byte[DOWNLOAD_BUFFER_SIZE];
+        int read;
+        while ((read = in.read(buffer)) != -1) {
+          ensureNotCancelled(cancelled, tracker);
+          out.write(buffer, 0, read);
+          tracker.addBytes(read);
+        }
       }
       tracker.complete();
       metrics.recordValue(

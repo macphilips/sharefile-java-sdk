@@ -138,14 +138,38 @@ class RetryEngineTest {
   // ── 429 retry tests ───────────────────────────────────────────────────
 
   @Test
-  void status429WithRetryAfterUsesHeaderValue() {
+  void status429OnPostThrowsImmediatelyWithDefaultPolicy() {
     RetryConfig config =
         RetryConfig.builder().maxRetries(3).initialBackoff(Duration.ofMillis(10)).build();
     RetryEngine engine = new RetryEngine(config, metricsProvider);
 
     AtomicInteger attempts = new AtomicInteger();
+    assertThrows(
+        ShareFileApiException.class,
+        () ->
+            engine.execute(
+                () -> {
+                  attempts.incrementAndGet();
+                  throw new RetryEngine.RetryableResponseException(
+                      429, 0, "TooManyRequests", "Rate limited", "req-id", "POST", "/Items");
+                },
+                "POST",
+                RetryPolicy.DEFAULT));
 
-    // 429 with Retry-After: the engine should retry even for POST (429 is always retryable)
+    assertEquals(1, attempts.get());
+  }
+
+  @Test
+  void status429OnPostRetriesWhenOptedIn() {
+    RetryConfig config =
+        RetryConfig.builder()
+            .maxRetries(3)
+            .initialBackoff(Duration.ofMillis(10))
+            .jitterFactor(0.0)
+            .build();
+    RetryEngine engine = new RetryEngine(config, metricsProvider);
+
+    AtomicInteger attempts = new AtomicInteger();
     HttpTransport.HttpResponse response =
         engine.execute(
             () -> {
@@ -157,7 +181,7 @@ class RetryEngineTest {
               return successResponse();
             },
             "POST",
-            RetryPolicy.DEFAULT);
+            RetryPolicy.retryOnServerError(2));
 
     assertEquals(200, response.statusCode());
     assertEquals(2, attempts.get());
