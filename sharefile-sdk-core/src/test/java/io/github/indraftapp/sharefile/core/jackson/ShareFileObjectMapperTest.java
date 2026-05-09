@@ -1,5 +1,7 @@
 package io.github.indraftapp.sharefile.core.jackson;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,26 +14,24 @@ import io.github.indraftapp.sharefile.core.model.Item;
 import io.github.indraftapp.sharefile.core.model.ODataEntity;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
 import io.github.indraftapp.sharefile.core.model.Share;
+import java.time.Instant;
+import java.time.ZonedDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
-import java.time.ZonedDateTime;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 class ShareFileObjectMapperTest {
 
-    private ObjectMapper mapper;
+  private ObjectMapper mapper;
 
-    @BeforeEach
-    void setUp() {
-        mapper = ShareFileObjectMapper.create();
-    }
+  @BeforeEach
+  void setUp() {
+    mapper = ShareFileObjectMapper.create();
+  }
 
-    @Test
-    void shouldIgnoreUnknownPropertiesByDefault() throws Exception {
-        String json = """
+  @Test
+  void shouldIgnoreUnknownPropertiesByDefault() throws Exception {
+    String json =
+        """
                 {
                     "odata.type": "ShareFile.Api.Models.File",
                     "Id": "file-1",
@@ -40,39 +40,40 @@ class ShareFileObjectMapperTest {
                 }
                 """;
 
-        Item item = mapper.readValue(json, Item.class);
+    Item item = mapper.readValue(json, Item.class);
 
-        assertThat(item).isInstanceOf(File.class);
-        assertThat(item.getId()).isEqualTo("file-1");
-    }
+    assertThat(item).isInstanceOf(File.class);
+    assertThat(item.getId()).isEqualTo("file-1");
+  }
 
-    @Test
-    void shouldSerializeJavaTimeTypesAsIso8601Strings() throws Exception {
-        TimePayload payload = new TimePayload();
-        payload.setInstant(Instant.parse("2026-05-09T10:15:30Z"));
-        payload.setZonedDateTime(ZonedDateTime.parse("2026-05-09T11:15:30+01:00[Africa/Lagos]"));
+  @Test
+  void shouldSerializeJavaTimeTypesAsIso8601Strings() throws Exception {
+    TimePayload payload = new TimePayload();
+    payload.setInstant(Instant.parse("2026-05-09T10:15:30Z"));
+    payload.setZonedDateTime(ZonedDateTime.parse("2026-05-09T11:15:30+01:00[Africa/Lagos]"));
 
-        JsonNode json = mapper.readTree(mapper.writeValueAsBytes(payload));
+    JsonNode json = mapper.readTree(mapper.writeValueAsBytes(payload));
 
-        assertThat(json.get("Instant").isTextual()).isTrue();
-        assertThat(json.get("Instant").asText()).isEqualTo("2026-05-09T10:15:30Z");
-        assertThat(json.get("ZonedDateTime").isTextual()).isTrue();
-    }
+    assertThat(json.get("Instant").isTextual()).isTrue();
+    assertThat(json.get("Instant").asText()).isEqualTo("2026-05-09T10:15:30Z");
+    assertThat(json.get("ZonedDateTime").isTextual()).isTrue();
+  }
 
-    @Test
-    void shouldApplyPascalCaseNamingStrategyToPlainBeans() throws Exception {
-        PascalCasePayload payload = new PascalCasePayload();
-        payload.setFileName("quarterly-report.pdf");
+  @Test
+  void shouldApplyPascalCaseNamingStrategyToPlainBeans() throws Exception {
+    PascalCasePayload payload = new PascalCasePayload();
+    payload.setFileName("quarterly-report.pdf");
 
-        JsonNode json = mapper.readTree(mapper.writeValueAsBytes(payload));
+    JsonNode json = mapper.readTree(mapper.writeValueAsBytes(payload));
 
-        assertThat(json.has("FileName")).isTrue();
-        assertThat(json.has("fileName")).isFalse();
-    }
+    assertThat(json.has("FileName")).isTrue();
+    assertThat(json.has("fileName")).isFalse();
+  }
 
-    @Test
-    void shouldDeserializeODataEntityUsingTypeResolver() throws Exception {
-        String json = """
+  @Test
+  void shouldDeserializeODataEntityUsingTypeResolver() throws Exception {
+    String json =
+        """
                 {
                     "odata.type": "ShareFile.Api.Models.AsyncOperation",
                     "Id": "op1",
@@ -80,15 +81,16 @@ class ShareFileObjectMapperTest {
                 }
                 """;
 
-        ODataEntity entity = mapper.readValue(json, ODataEntity.class);
+    ODataEntity entity = mapper.readValue(json, ODataEntity.class);
 
-        assertThat(entity).isInstanceOf(AsyncOperation.class);
-        assertThat(entity.getId()).isEqualTo("op1");
-    }
+    assertThat(entity).isInstanceOf(AsyncOperation.class);
+    assertThat(entity.getId()).isEqualTo("op1");
+  }
 
-    @Test
-    void shouldDeserializeFeedWithConcreteItemSubtypes() throws Exception {
-        String json = """
+  @Test
+  void shouldDeserializeFeedWithConcreteItemSubtypes() throws Exception {
+    String json =
+        """
                 {
                     "odata.metadata": "https://example.sf-api.com/sf/v3/$metadata#Items",
                     "odata.count": 2,
@@ -108,19 +110,20 @@ class ShareFileObjectMapperTest {
                 }
                 """;
 
-        ODataFeed<Item> feed = mapper.readValue(json, new TypeReference<>() {});
+    ODataFeed<Item> feed = mapper.readValue(json, new TypeReference<>() {});
 
-        assertThat(feed.getMetadata()).isEqualTo("https://example.sf-api.com/sf/v3/$metadata#Items");
-        assertThat(feed.getCount()).isEqualTo(2);
-        assertThat(feed.getNextLink()).isEqualTo("https://example.sf-api.com/sf/v3/Items?$skip=2");
-        assertThat(feed.getItems()).hasSize(2);
-        assertThat(feed.getItems().get(0)).isInstanceOf(File.class);
-        assertThat(feed.getItems().get(1)).isInstanceOf(Folder.class);
-    }
+    assertThat(feed.getMetadata()).isEqualTo("https://example.sf-api.com/sf/v3/$metadata#Items");
+    assertThat(feed.getCount()).isEqualTo(2);
+    assertThat(feed.getNextLink()).isEqualTo("https://example.sf-api.com/sf/v3/Items?$skip=2");
+    assertThat(feed.getItems()).hasSize(2);
+    assertThat(feed.getItems().get(0)).isInstanceOf(File.class);
+    assertThat(feed.getItems().get(1)).isInstanceOf(Folder.class);
+  }
 
-    @Test
-    void shouldDeserializeShareNestedItemsUsingTypeResolver() throws Exception {
-        String json = """
+  @Test
+  void shouldDeserializeShareNestedItemsUsingTypeResolver() throws Exception {
+    String json =
+        """
                 {
                     "Id": "share-1",
                     "Items": [
@@ -138,15 +141,16 @@ class ShareFileObjectMapperTest {
                 }
                 """;
 
-        Share share = mapper.readValue(json, Share.class);
+    Share share = mapper.readValue(json, Share.class);
 
-        assertThat(share.getItems()).singleElement().isInstanceOf(File.class);
-        assertThat(share.getParent()).isInstanceOf(Folder.class);
-    }
+    assertThat(share.getItems()).singleElement().isInstanceOf(File.class);
+    assertThat(share.getParent()).isInstanceOf(Folder.class);
+  }
 
-    @Test
-    void shouldDeserializeAccessControlPrincipalUsingTypeResolver() throws Exception {
-        String json = """
+  @Test
+  void shouldDeserializeAccessControlPrincipalUsingTypeResolver() throws Exception {
+    String json =
+        """
                 {
                     "Id": "acl-1",
                     "Principal": {
@@ -158,43 +162,43 @@ class ShareFileObjectMapperTest {
                 }
                 """;
 
-        AccessControl accessControl = mapper.readValue(json, AccessControl.class);
+    AccessControl accessControl = mapper.readValue(json, AccessControl.class);
 
-        assertThat(accessControl.getPrincipal()).isInstanceOf(Group.class);
-        assertThat(((Group) accessControl.getPrincipal()).getName()).isEqualTo("Finance Team");
-        assertThat(accessControl.getCanDownload()).isTrue();
+    assertThat(accessControl.getPrincipal()).isInstanceOf(Group.class);
+    assertThat(((Group) accessControl.getPrincipal()).getName()).isEqualTo("Finance Team");
+    assertThat(accessControl.getCanDownload()).isTrue();
+  }
+
+  private static final class PascalCasePayload {
+    private String fileName;
+
+    public String getFileName() {
+      return fileName;
     }
 
-    private static final class PascalCasePayload {
-        private String fileName;
+    public void setFileName(String fileName) {
+      this.fileName = fileName;
+    }
+  }
 
-        public String getFileName() {
-            return fileName;
-        }
+  private static final class TimePayload {
+    private Instant instant;
+    private ZonedDateTime zonedDateTime;
 
-        public void setFileName(String fileName) {
-            this.fileName = fileName;
-        }
+    public Instant getInstant() {
+      return instant;
     }
 
-    private static final class TimePayload {
-        private Instant instant;
-        private ZonedDateTime zonedDateTime;
-
-        public Instant getInstant() {
-            return instant;
-        }
-
-        public void setInstant(Instant instant) {
-            this.instant = instant;
-        }
-
-        public ZonedDateTime getZonedDateTime() {
-            return zonedDateTime;
-        }
-
-        public void setZonedDateTime(ZonedDateTime zonedDateTime) {
-            this.zonedDateTime = zonedDateTime;
-        }
+    public void setInstant(Instant instant) {
+      this.instant = instant;
     }
+
+    public ZonedDateTime getZonedDateTime() {
+      return zonedDateTime;
+    }
+
+    public void setZonedDateTime(ZonedDateTime zonedDateTime) {
+      this.zonedDateTime = zonedDateTime;
+    }
+  }
 }

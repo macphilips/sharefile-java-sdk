@@ -6,32 +6,30 @@ import io.github.indraftapp.sharefile.core.model.enums.UploadMethod;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Response payload containing ShareFile upload endpoints and resume metadata.
- */
+/** Response payload containing ShareFile upload endpoints and resume metadata. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
 public class UploadSpecification {
 
-    @JsonProperty("Method")
-    private UploadMethod method;
+  @JsonProperty("Method")
+  private UploadMethod method;
 
-    @JsonProperty("ChunkUri")
-    private String chunkUri;
+  @JsonProperty("ChunkUri")
+  private String chunkUri;
 
-    @JsonProperty("IsResume")
-    private Boolean isResume;
+  @JsonProperty("IsResume")
+  private Boolean isResume;
 
-    @JsonProperty("ResumeIndex")
-    private Long resumeIndex;
+  @JsonProperty("ResumeIndex")
+  private Long resumeIndex;
 
-    @JsonProperty("ResumeOffset")
-    private Long resumeOffset;
+  @JsonProperty("ResumeOffset")
+  private Long resumeOffset;
 
-    @JsonProperty("ResumeFileHash")
-    private String resumeFileHash;
+  @JsonProperty("ResumeFileHash")
+  private String resumeFileHash;
 
-    @JsonProperty("FinishUri")
-    private String finishUri;
+  @JsonProperty("FinishUri")
+  private String finishUri;
 }

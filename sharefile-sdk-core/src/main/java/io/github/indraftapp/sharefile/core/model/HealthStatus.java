@@ -10,24 +10,24 @@ package io.github.indraftapp.sharefile.core.model;
  */
 public record HealthStatus(boolean up, String subdomain, Long tokenExpiresInSeconds, String error) {
 
-    /**
-     * Creates a healthy status snapshot for the given ShareFile subdomain.
-     *
-     * @param subdomain the ShareFile subdomain that was checked
-     * @param tokenExpiry the remaining token lifetime in seconds
-     * @return a healthy status snapshot
-     */
-    public static HealthStatus up(String subdomain, long tokenExpiry) {
-        return new HealthStatus(true, subdomain, tokenExpiry, null);
-    }
+  /**
+   * Creates a healthy status snapshot for the given ShareFile subdomain.
+   *
+   * @param subdomain the ShareFile subdomain that was checked
+   * @param tokenExpiry the remaining token lifetime in seconds
+   * @return a healthy status snapshot
+   */
+  public static HealthStatus up(String subdomain, long tokenExpiry) {
+    return new HealthStatus(true, subdomain, tokenExpiry, null);
+  }
 
-    /**
-     * Creates an unhealthy status snapshot from the supplied failure cause.
-     *
-     * @param cause the exception that caused the health check to fail
-     * @return an unhealthy status snapshot
-     */
-    public static HealthStatus down(Exception cause) {
-        return new HealthStatus(false, null, null, cause.getMessage());
-    }
+  /**
+   * Creates an unhealthy status snapshot from the supplied failure cause.
+   *
+   * @param cause the exception that caused the health check to fail
+   * @return an unhealthy status snapshot
+   */
+  public static HealthStatus down(Exception cause) {
+    return new HealthStatus(false, null, null, cause.getMessage());
+  }
 }

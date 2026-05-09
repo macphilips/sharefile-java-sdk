@@ -8,19 +8,20 @@ import io.github.indraftapp.sharefile.core.model.ODataFeed;
  * Jackson module that registers custom deserializers for ShareFile OData types.
  *
  * <p>Registers:
+ *
  * <ul>
- *   <li>{@link ODataEntity} deserializer — resolves polymorphic types via {@code odata.type}</li>
- *   <li>{@link ODataFeed} deserializer — handles OData collection responses with
- *       {@code odata.count}, {@code odata.nextLink}, and generic item type resolution</li>
+ *   <li>{@link ODataEntity} deserializer — resolves polymorphic types via {@code odata.type}
+ *   <li>{@link ODataFeed} deserializer — handles OData collection responses with {@code
+ *       odata.count}, {@code odata.nextLink}, and generic item type resolution
  * </ul>
  *
  * <p>Automatically registered by {@link ShareFileObjectMapper#create()}.
  */
 public final class ShareFileModule extends SimpleModule {
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public ShareFileModule() {
-        addDeserializer(ODataEntity.class, new ODataEntityDeserializer());
-        addDeserializer((Class) ODataFeed.class, new ODataFeedDeserializer());
-    }
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public ShareFileModule() {
+    addDeserializer(ODataEntity.class, new ODataEntityDeserializer());
+    addDeserializer((Class) ODataFeed.class, new ODataFeedDeserializer());
+  }
 }

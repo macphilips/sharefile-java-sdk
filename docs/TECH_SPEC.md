@@ -1,11 +1,11 @@
 # ShareFile Java SDK — Technical Specification
 
-**Version:** 1.0.0-SNAPSHOT  
-**Java:** 17+  
-**Build Tool:** Gradle (Kotlin DSL)  
-**HTTP Client:** `java.net.http.HttpClient` (core); Spring RestClient adapter (optional)  
-**Framework:** None required. Spring Boot 3 supported via starter.  
-**Date:** 2026-05-08  
+**Version:** 1.0.0-SNAPSHOT
+**Java:** 17+
+**Build Tool:** Gradle (Kotlin DSL)
+**HTTP Client:** `java.net.http.HttpClient` (core); Spring RestClient adapter (optional)
+**Framework:** None required. Spring Boot 3 supported via starter.
+**Date:** 2026-05-08
 
 ---
 
@@ -42,12 +42,12 @@ The core SDK runs on **pure Java 17** with zero framework dependencies. A separa
 
 The ShareFile REST API exposes many entities. This SDK implements them in phased tiers:
 
-| Tier | Entities | Milestone | Rationale |
-|------|----------|-----------|-----------|
-| **Tier 1 (v0.1)** | Items, AsyncOperations, AccessControls, Shares, Users | MVP | Core file/folder operations, sharing, permissions, and async polling — covers the primary ShareFile workflows |
-| **Tier 2 (v0.2)** | Groups, WebhookSubscriptions, Sessions | v0.2 | Collaboration, event-driven integrations, and session management |
-| **Tier 3 (v0.3)** | Accounts, Zones, StorageCenters, Capabilities | v0.3 | Administrative and infrastructure management |
-| **Tier 4 (v1.0+)** | Devices, Reports, FolderTemplates, Apps, Policies, Metadata, Workflows, EncryptedEmails, Favorites, ConnectorGroups, WebhookClients | Future | Enterprise, reporting, and specialized features |
+| Tier               | Entities                                                                                                                            | Milestone | Rationale                                                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------- |
+| **Tier 1 (v0.1)**  | Items, AsyncOperations, AccessControls, Shares, Users                                                                               | MVP       | Core file/folder operations, sharing, permissions, and async polling — covers the primary ShareFile workflows |
+| **Tier 2 (v0.2)**  | Groups, WebhookSubscriptions, Sessions                                                                                              | v0.2      | Collaboration, event-driven integrations, and session management                                              |
+| **Tier 3 (v0.3)**  | Accounts, Zones, StorageCenters, Capabilities                                                                                       | v0.3      | Administrative and infrastructure management                                                                  |
+| **Tier 4 (v1.0+)** | Devices, Reports, FolderTemplates, Apps, Policies, Metadata, Workflows, EncryptedEmails, Favorites, ConnectorGroups, WebhookClients | Future    | Enterprise, reporting, and specialized features                                                               |
 
 > **Note:** The architecture (SPI interfaces, HTTP abstraction, entity service pattern) is designed so that adding new entity clients is incremental — each new resource client is self-contained and does not require changes to the core SDK infrastructure.
 
@@ -237,25 +237,25 @@ sharefile-sdk-test (testFixtures)
 
 ### 2.4 What Goes Where
 
-| Concern | Module | Framework Dependency |
-|---------|--------|---------------------|
-| Entity POJOs, enums | `core` | Jackson only |
-| Exception hierarchy | `core` | None |
-| OData query builder | `core` | None |
-| `ShareFileClient` + builder | `client` | None |
-| OAuth2 token management | `client` | None (`java.net.http`) |
-| Resource client classes | `client` | None |
-| Upload/download pipeline | `client` | None (`java.util.concurrent`) |
-| HTTP transport (JDK impl) | `client` | None (`java.net.http.HttpClient`) |
-| Retry engine | `client` | None |
-| `CredentialProvider` SPI | `client` | None (static default) |
-| `MetricsProvider` SPI | `client` | None (no-op default) |
-| `TokenStore` SPI | `client` | None (in-memory default) |
-| Spring auto-configuration | `spring-boot-starter` | Spring Boot 3 |
-| `application.yml` binding | `spring-boot-starter` | Spring Boot 3 |
-| Micrometer metrics impl | `spring-boot-starter` | Micrometer |
-| Actuator health indicator | `spring-boot-starter` | Spring Actuator |
-| RestClient HTTP adapter | `spring-boot-starter` | Spring Web 6 |
+| Concern                     | Module                | Framework Dependency              |
+| --------------------------- | --------------------- | --------------------------------- |
+| Entity POJOs, enums         | `core`                | Jackson only                      |
+| Exception hierarchy         | `core`                | None                              |
+| OData query builder         | `core`                | None                              |
+| `ShareFileClient` + builder | `client`              | None                              |
+| OAuth2 token management     | `client`              | None (`java.net.http`)            |
+| Resource client classes     | `client`              | None                              |
+| Upload/download pipeline    | `client`              | None (`java.util.concurrent`)     |
+| HTTP transport (JDK impl)   | `client`              | None (`java.net.http.HttpClient`) |
+| Retry engine                | `client`              | None                              |
+| `CredentialProvider` SPI    | `client`              | None (static default)             |
+| `MetricsProvider` SPI       | `client`              | None (no-op default)              |
+| `TokenStore` SPI            | `client`              | None (in-memory default)          |
+| Spring auto-configuration   | `spring-boot-starter` | Spring Boot 3                     |
+| `application.yml` binding   | `spring-boot-starter` | Spring Boot 3                     |
+| Micrometer metrics impl     | `spring-boot-starter` | Micrometer                        |
+| Actuator health indicator   | `spring-boot-starter` | Spring Actuator                   |
+| RestClient HTTP adapter     | `spring-boot-starter` | Spring Web 6                      |
 
 ---
 
@@ -596,6 +596,7 @@ ShareFileHttpClient (continued)
 ### 4.6 Request/Response Serialization
 
 **Jackson ObjectMapper** configured with:
+
 - `DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES = false` (API may add fields)
 - `SerializationFeature.WRITE_DATES_AS_TIMESTAMPS = false`
 - `JavaTimeModule` for `Instant`/`ZonedDateTime` handling
@@ -611,11 +612,11 @@ The SDK creates its own `ObjectMapper` by default. Callers can provide a custom 
 
 ### 5.1 OAuth2 Flows Supported
 
-| Flow | Use Case | Builder Method | Recommendation |
-|------|----------|---------------|----------------|
-| **Authorization Code** | Web applications with user interaction | `.authorizationCode(code)` or via `CredentialProvider` | **Preferred for production** |
-| **Pre-existing Token** | Token obtained externally (e.g., host app's OAuth flow) | `.accessToken(token, refreshToken)` | Preferred when host app manages OAuth |
-| **Password Grant** | Legacy service-accounts, internal automation, non-interactive workflows | `.passwordGrant(username, password)` or via `CredentialProvider` | Legacy — use only where account config permits |
+| Flow                   | Use Case                                                                | Builder Method                                                   | Recommendation                                 |
+| ---------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------- |
+| **Authorization Code** | Web applications with user interaction                                  | `.authorizationCode(code)` or via `CredentialProvider`           | **Preferred for production**                   |
+| **Pre-existing Token** | Token obtained externally (e.g., host app's OAuth flow)                 | `.accessToken(token, refreshToken)`                              | Preferred when host app manages OAuth          |
+| **Password Grant**     | Legacy service-accounts, internal automation, non-interactive workflows | `.passwordGrant(username, password)` or via `CredentialProvider` | Legacy — use only where account config permits |
 
 > **Note:** Password grant requires the ShareFile account to allow direct username/password authentication. New production integrations should prefer authorization-code OAuth or externally managed token flows. Password grant is provided for backward compatibility, internal tooling, and tightly controlled service-account scenarios.
 
@@ -655,8 +656,8 @@ public record Credentials(
 
 **Built-in implementations:**
 
-| Implementation | Description |
-|---------------|-------------|
+| Implementation             | Description                                                                                                            |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `StaticCredentialProvider` | Wraps fixed values. Created internally when using `builder().clientCredentials().passwordGrant()` convenience methods. |
 
 **`CredentialProvider` is called only during authentication** — when the SDK needs to obtain an initial access token or a new token after expiry. Once a valid access token exists, it is reused for all API calls until it expires. This means:
@@ -836,6 +837,7 @@ public interface TokenStore {
 ```
 
 Built-in implementations:
+
 - `InMemoryTokenStore` (default)
 - Spring starter adds: property-driven selection with extensibility for Redis, JDBC, etc.
 
@@ -846,11 +848,11 @@ POST https://{subdomain}.{apicp}/oauth/token
 Content-Type: application/x-www-form-urlencoded
 ```
 
-| Grant Type | Parameters |
-|------------|-----------|
-| `authorization_code` | `grant_type`, `code`, `client_id`, `client_secret` |
-| `password` | `grant_type`, `username`, `password`, `client_id`, `client_secret` |
-| `refresh_token` | `grant_type`, `refresh_token`, `client_id`, `client_secret` |
+| Grant Type           | Parameters                                                         |
+| -------------------- | ------------------------------------------------------------------ |
+| `authorization_code` | `grant_type`, `code`, `client_id`, `client_secret`                 |
+| `password`           | `grant_type`, `username`, `password`, `client_id`, `client_secret` |
+| `refresh_token`      | `grant_type`, `refresh_token`, `client_id`, `client_secret`        |
 
 ### 5.5 HMAC Validation (Authorization Code Flow)
 
@@ -904,18 +906,18 @@ This ensures consistent URI construction, OData handling, request execution, and
 
 ### 6.2 Resource Client Registry
 
-| Resource Client | Base Path | Primary Type | Tier |
-|----------------|-----------|--------------|------|
-| `ItemsClient` | `/Items` | `Item` | 1 |
-| `AsyncOperationsClient` | `/AsyncOperations` | `AsyncOperation` | 1 |
-| `AccessControlsClient` | `/AccessControls` | `AccessControl` | 1 |
-| `SharesClient` | `/Shares` | `Share` | 1 |
-| `UsersClient` | `/Users` | `User` | 1 |
-| `GroupsClient` | `/Groups` | `Group` | 2 |
-| `WebhookSubscriptionsClient` | `/WebhookSubscriptions` | `WebhookSubscription` | 2 |
-| `SessionsClient` | `/Sessions` | `Session` | 2 |
-| `AccountsClient` | `/Accounts` | `Account` | 3 |
-| `ZonesClient` | `/Zones` | `Zone` | 3 |
+| Resource Client              | Base Path               | Primary Type          | Tier |
+| ---------------------------- | ----------------------- | --------------------- | ---- |
+| `ItemsClient`                | `/Items`                | `Item`                | 1    |
+| `AsyncOperationsClient`      | `/AsyncOperations`      | `AsyncOperation`      | 1    |
+| `AccessControlsClient`       | `/AccessControls`       | `AccessControl`       | 1    |
+| `SharesClient`               | `/Shares`               | `Share`               | 1    |
+| `UsersClient`                | `/Users`                | `User`                | 1    |
+| `GroupsClient`               | `/Groups`               | `Group`               | 2    |
+| `WebhookSubscriptionsClient` | `/WebhookSubscriptions` | `WebhookSubscription` | 2    |
+| `SessionsClient`             | `/Sessions`             | `Session`             | 2    |
+| `AccountsClient`             | `/Accounts`             | `Account`             | 3    |
+| `ZonesClient`                | `/Zones`                | `Zone`                | 3    |
 
 ### 6.3 ItemsClient
 
@@ -1064,7 +1066,7 @@ public final class SharesClient {
 
 ### 6.7 UsersClient
 
-```java
+````java
 public final class UsersClient {
     private final ResourceRequestExecutor executor;
 
@@ -1250,7 +1252,7 @@ ODataQuery query = ODataQuery.builder()
     .build();
 
 // Serializes to: ?$select=Name,Email,CreationDate&$expand=Parent,Zone&$filter=...&$orderby=CreationDate desc&$top=100&$skip=0
-```
+````
 
 ### 7.2 Filter Builder
 
@@ -1342,12 +1344,12 @@ ODataEntity
 
 Four ShareFile endpoints can return **either** the expected entity **or** an `AsyncOperation`:
 
-| Endpoint | Async Trigger |
-|----------|--------------|
-| `PATCH /Items({id})` | Item's Zone or Parent Zone is modified (cross-zone move) |
-| `POST /Items({id})/Copy` | Target folder is in a different zone |
-| `POST /Items({id})/AccessControls` | Recursive permission application |
-| `PATCH /Items({id})/AccessControls` | Recursive permission update |
+| Endpoint                            | Async Trigger                                            |
+| ----------------------------------- | -------------------------------------------------------- |
+| `PATCH /Items({id})`                | Item's Zone or Parent Zone is modified (cross-zone move) |
+| `POST /Items({id})/Copy`            | Target folder is in a different zone                     |
+| `POST /Items({id})/AccessControls`  | Recursive permission application                         |
+| `PATCH /Items({id})/AccessControls` | Recursive permission update                              |
 
 ```java
 public sealed interface OperationResult<T> {
@@ -1496,6 +1498,7 @@ private void handleErrorResponse(int status, byte[] body, RequestContext context
 ### 9.4 Error Context Enrichment
 
 Every exception includes:
+
 - **Request ID** (`X-Request-Id`) for correlating with server-side logs
 - **Request method + URI** for identifying which call failed
 - **Elapsed time** since request start
@@ -1525,13 +1528,13 @@ public final class RetryConfig {
 
 ### 10.2 Retry Policy
 
-| Condition | Retries | Backoff | Strategy |
-|-----------|---------|---------|----------|
-| 429 Rate Limited | 3 | `Retry-After` header, else 5s/10s/20s | Honor server directive |
-| 5xx Server Error | 3 | Exponential: 1s, 2s, 4s (±jitter) | Configurable |
-| Connection timeout | 2 | Fixed 2s | Idempotent requests only |
-| Token expired (401) | 1 | Immediate | Refresh token, then retry |
-| 400, 403, 404, 409 | 0 | — | Client errors are not retried |
+| Condition           | Retries | Backoff                               | Strategy                      |
+| ------------------- | ------- | ------------------------------------- | ----------------------------- |
+| 429 Rate Limited    | 3       | `Retry-After` header, else 5s/10s/20s | Honor server directive        |
+| 5xx Server Error    | 3       | Exponential: 1s, 2s, 4s (±jitter)     | Configurable                  |
+| Connection timeout  | 2       | Fixed 2s                              | Idempotent requests only      |
+| Token expired (401) | 1       | Immediate                             | Refresh token, then retry     |
+| 400, 403, 404, 409  | 0       | —                                     | Client errors are not retried |
 
 ### 10.3 Idempotency
 
@@ -1581,19 +1584,19 @@ public interface MetricsProvider {
 
 The core SDK calls `MetricsProvider` at well-defined points. The **metric names** are consistent regardless of the implementation:
 
-| Metric Name | Type | Description |
-|-------------|------|-------------|
-| `sharefile.http.requests` | Timer | Request duration |
-| `sharefile.http.requests.active` | Gauge | In-flight requests |
-| `sharefile.http.errors` | Counter | Errors by status code |
-| `sharefile.auth.token.refresh` | Counter | Token refresh (tagged `outcome`) |
-| `sharefile.auth.token.expiry` | Gauge | Seconds until token expires |
-| `sharefile.transfer.upload.bytes` | Summary | Upload sizes |
-| `sharefile.transfer.upload.duration` | Timer | Upload duration |
-| `sharefile.transfer.download.bytes` | Summary | Download sizes |
-| `sharefile.transfer.download.duration` | Timer | Download duration |
-| `sharefile.retry.attempts` | Counter | Retries by entity and cause |
-| `sharefile.transfer.active` | Gauge | In-flight transfers |
+| Metric Name                            | Type    | Description                      |
+| -------------------------------------- | ------- | -------------------------------- |
+| `sharefile.http.requests`              | Timer   | Request duration                 |
+| `sharefile.http.requests.active`       | Gauge   | In-flight requests               |
+| `sharefile.http.errors`                | Counter | Errors by status code            |
+| `sharefile.auth.token.refresh`         | Counter | Token refresh (tagged `outcome`) |
+| `sharefile.auth.token.expiry`          | Gauge   | Seconds until token expires      |
+| `sharefile.transfer.upload.bytes`      | Summary | Upload sizes                     |
+| `sharefile.transfer.upload.duration`   | Timer   | Upload duration                  |
+| `sharefile.transfer.download.bytes`    | Summary | Download sizes                   |
+| `sharefile.transfer.download.duration` | Timer   | Download duration                |
+| `sharefile.retry.attempts`             | Counter | Retries by entity and cause      |
+| `sharefile.transfer.active`            | Gauge   | In-flight transfers              |
 
 ### 11.3 Micrometer Binding (in `spring-boot-starter`)
 
@@ -1631,12 +1634,12 @@ public final class MicrometerMetricsProvider implements MetricsProvider {
 
 The SDK uses **SLF4J** (the only non-Jackson dependency in the client module). This works with any logging backend (Logback, Log4j2, JUL):
 
-| Level | What Gets Logged |
-|-------|-----------------|
-| `ERROR` | 5xx responses, auth failures, unrecoverable errors |
-| `WARN` | 4xx responses, retry attempts, rate limiting |
-| `INFO` | Token refresh, lifecycle events (client created/closed) |
-| `DEBUG` | Every request/response (method, URI, status, duration) |
+| Level   | What Gets Logged                                          |
+| ------- | --------------------------------------------------------- |
+| `ERROR` | 5xx responses, auth failures, unrecoverable errors        |
+| `WARN`  | 4xx responses, retry attempts, rate limiting              |
+| `INFO`  | Token refresh, lifecycle events (client created/closed)   |
+| `DEBUG` | Every request/response (method, URI, status, duration)    |
 | `TRACE` | Full request/response bodies (redacting sensitive fields) |
 
 **Sensitive field redaction** at TRACE level:
@@ -1677,14 +1680,14 @@ The Spring starter wraps this in an Actuator `HealthIndicator` (§14.3).
 
 ### 11.6 Alerting Recommendations
 
-| Alert | Condition | Severity |
-|-------|-----------|----------|
-| **Auth Failure** | `sharefile.auth.token.refresh{outcome=failure}` > 0 for 5min | Critical |
-| **High Error Rate** | `rate(sharefile.http.errors{status=~"5.."}[5m])` > 10% | High |
-| **Rate Limiting** | `sharefile.http.errors{status="429"}` > 0 | Warning |
-| **Token Expiry** | `sharefile.auth.token.expiry` < 300 seconds | Warning |
-| **Slow Requests** | `sharefile.http.requests` p99 > 10s for 5min | Warning |
-| **Upload Failures** | `sharefile.http.errors{entity="Items", method="POST"}` spike | High |
+| Alert               | Condition                                                    | Severity |
+| ------------------- | ------------------------------------------------------------ | -------- |
+| **Auth Failure**    | `sharefile.auth.token.refresh{outcome=failure}` > 0 for 5min | Critical |
+| **High Error Rate** | `rate(sharefile.http.errors{status=~"5.."}[5m])` > 10%       | High     |
+| **Rate Limiting**   | `sharefile.http.errors{status="429"}` > 0                    | Warning  |
+| **Token Expiry**    | `sharefile.auth.token.expiry` < 300 seconds                  | Warning  |
+| **Slow Requests**   | `sharefile.http.requests` p99 > 10s for 5min                 | Warning  |
+| **Upload Failures** | `sharefile.http.errors{entity="Items", method="POST"}` spike | High     |
 
 ---
 
@@ -1694,13 +1697,13 @@ File transfers use **pure Java** (`java.util.concurrent`, `java.net.http`, `java
 
 ### 12.1 Design Principles
 
-| Principle | Rationale |
-|-----------|-----------|
+| Principle                         | Rationale                                                                                    |
+| --------------------------------- | -------------------------------------------------------------------------------------------- |
 | **Sync by default, async opt-in** | Sync uses direct calls; async layers `CompletableFuture` on a configurable `ExecutorService` |
-| **Streaming over buffering** | Files never fully loaded into heap; all methods stream through bounded buffers |
-| **Resumable by default** | Uploads track chunk state for resume after failures |
-| **Progress observable** | `TransferProgressListener` callback on both uploads and downloads |
-| **Cancellable** | Async transfers return a `TransferHandle` with cooperative cancellation |
+| **Streaming over buffering**      | Files never fully loaded into heap; all methods stream through bounded buffers               |
+| **Resumable by default**          | Uploads track chunk state for resume after failures                                          |
+| **Progress observable**           | `TransferProgressListener` callback on both uploads and downloads                            |
+| **Cancellable**                   | Async transfers return a `TransferHandle` with cooperative cancellation                      |
 
 ### 12.2 TransferClient API
 
@@ -1791,11 +1794,11 @@ Phase 1 uses the authenticated `ShareFileHttpClient`. Phases 2 and 3 use a **sep
 
 **Upload methods:**
 
-| Method | Behavior | Auto-Selected When |
-|--------|----------|-------------------|
-| `Standard` | Single POST with entire file | File < 4 MB |
-| `Streamed` | Single POST with chunked transfer encoding | 4 MB – 256 MB |
-| `Threaded` | Parallel chunk uploads via `ExecutorService` | > 256 MB |
+| Method     | Behavior                                     | Auto-Selected When |
+| ---------- | -------------------------------------------- | ------------------ |
+| `Standard` | Single POST with entire file                 | File < 4 MB        |
+| `Streamed` | Single POST with chunked transfer encoding   | 4 MB – 256 MB      |
+| `Threaded` | Parallel chunk uploads via `ExecutorService` | > 256 MB           |
 
 **Threaded upload** uses `java.util.concurrent` directly:
 
@@ -2266,15 +2269,15 @@ class SpringItemsServiceTest {
 
 ## 16. Security Considerations
 
-| Concern | Mitigation |
-|---------|-----------|
-| Credential storage | `CredentialProvider` SPI decouples credential sourcing — supports DB with AES-GCM encryption, Vault, env vars, or any custom strategy. Credentials are resolved lazily at auth time only, never stored in builder state. |
-| Token in logs | Redacted at TRACE level; never logged at DEBUG or above |
-| HMAC validation | Authorization code redirect validated before token exchange |
-| TLS | HTTPS enforced; no HTTP fallback |
-| Upload redirect | Separate `HttpTransport` instance with no auth headers for storage zone calls |
-| Dependency vulnerabilities | Gradle dependency-check plugin in CI |
-| SSRF | SDK only connects to `*.sf-api.com`, `*.sharefile.com`, and upload redirect hosts |
+| Concern                    | Mitigation                                                                                                                                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Credential storage         | `CredentialProvider` SPI decouples credential sourcing — supports DB with AES-GCM encryption, Vault, env vars, or any custom strategy. Credentials are resolved lazily at auth time only, never stored in builder state. |
+| Token in logs              | Redacted at TRACE level; never logged at DEBUG or above                                                                                                                                                                  |
+| HMAC validation            | Authorization code redirect validated before token exchange                                                                                                                                                              |
+| TLS                        | HTTPS enforced; no HTTP fallback                                                                                                                                                                                         |
+| Upload redirect            | Separate `HttpTransport` instance with no auth headers for storage zone calls                                                                                                                                            |
+| Dependency vulnerabilities | Gradle dependency-check plugin in CI                                                                                                                                                                                     |
+| SSRF                       | SDK only connects to `*.sf-api.com`, `*.sharefile.com`, and upload redirect hosts                                                                                                                                        |
 
 ---
 
@@ -2317,10 +2320,10 @@ dependencies {
 
 ### Minimum Dependency Footprint
 
-| Module | Dependencies |
-|--------|-------------|
-| `sharefile-sdk-core` | Jackson |
-| `sharefile-sdk-client` | Jackson + SLF4J |
+| Module                          | Dependencies                     |
+| ------------------------------- | -------------------------------- |
+| `sharefile-sdk-core`            | Jackson                          |
+| `sharefile-sdk-client`          | Jackson + SLF4J                  |
 | `sharefile-spring-boot-starter` | Above + Spring Boot + Micrometer |
 
 ---
@@ -2329,13 +2332,13 @@ dependencies {
 
 ### 18.1 Published Artifacts
 
-| Artifact | Artifact ID | Use Case |
-|----------|-------------|----------|
-| **Core** | `sharefile-sdk-core` | Models only (shared contract libraries) |
-| **Client** | `sharefile-sdk-client` | Pure Java usage (any framework) |
-| **Starter** | `sharefile-spring-boot-starter` | Spring Boot 3 auto-configured |
-| **BOM** | `sharefile-sdk-bom` | Version alignment |
-| **Test** | `sharefile-sdk-test` | WireMock fixtures + `@ShareFileMockServer` |
+| Artifact    | Artifact ID                     | Use Case                                   |
+| ----------- | ------------------------------- | ------------------------------------------ |
+| **Core**    | `sharefile-sdk-core`            | Models only (shared contract libraries)    |
+| **Client**  | `sharefile-sdk-client`          | Pure Java usage (any framework)            |
+| **Starter** | `sharefile-spring-boot-starter` | Spring Boot 3 auto-configured              |
+| **BOM**     | `sharefile-sdk-bom`             | Version alignment                          |
+| **Test**    | `sharefile-sdk-test`            | WireMock fixtures + `@ShareFileMockServer` |
 
 **Consumer dependency by use case:**
 
@@ -2352,11 +2355,11 @@ implementation("io.github.indraftapp:sharefile-sdk-core:1.0.0")
 
 ### 18.2 Repository Targets
 
-| Repository | Purpose | When |
-|------------|---------|------|
-| **Maven Central** | Public releases | Tagged release builds |
-| **GitHub Packages** | Snapshots | Every merge to `main` |
-| **Local `~/.m2`** | Developer testing | `./gradlew publishToMavenLocal` |
+| Repository          | Purpose           | When                            |
+| ------------------- | ----------------- | ------------------------------- |
+| **Maven Central**   | Public releases   | Tagged release builds           |
+| **GitHub Packages** | Snapshots         | Every merge to `main`           |
+| **Local `~/.m2`**   | Developer testing | `./gradlew publishToMavenLocal` |
 
 ### 18.3 Versioning
 

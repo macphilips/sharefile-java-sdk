@@ -3,33 +3,30 @@ package io.github.indraftapp.sharefile.core.model.enums;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
-/**
- * Represents the availability state of an item preview.
- */
+/** Represents the availability state of an item preview. */
 public enum PreviewStatus {
+  NONE("None"),
+  AVAILABLE("Available"),
+  UNAVAILABLE("Unavailable");
 
-    NONE("None"),
-    AVAILABLE("Available"),
-    UNAVAILABLE("Unavailable");
+  private final String value;
 
-    private final String value;
+  PreviewStatus(String value) {
+    this.value = value;
+  }
 
-    PreviewStatus(String value) {
-        this.value = value;
+  @JsonValue
+  public String getValue() {
+    return value;
+  }
+
+  @JsonCreator
+  public static PreviewStatus fromValue(String value) {
+    for (PreviewStatus status : values()) {
+      if (status.value.equalsIgnoreCase(value)) {
+        return status;
+      }
     }
-
-    @JsonValue
-    public String getValue() {
-        return value;
-    }
-
-    @JsonCreator
-    public static PreviewStatus fromValue(String value) {
-        for (PreviewStatus status : values()) {
-            if (status.value.equalsIgnoreCase(value)) {
-                return status;
-            }
-        }
-        throw new IllegalArgumentException("Unknown PreviewStatus: " + value);
-    }
+    throw new IllegalArgumentException("Unknown PreviewStatus: " + value);
+  }
 }

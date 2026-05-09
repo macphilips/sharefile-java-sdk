@@ -5,20 +5,18 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Response payload containing ShareFile download URLs and preparation state.
- */
+/** Response payload containing ShareFile download URLs and preparation state. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
 public class DownloadSpecification {
 
-    @JsonProperty("DownloadUrl")
-    private String downloadUrl;
+  @JsonProperty("DownloadUrl")
+  private String downloadUrl;
 
-    @JsonProperty("DownloadToken")
-    private String downloadToken;
+  @JsonProperty("DownloadToken")
+  private String downloadToken;
 
-    @JsonProperty("PrepStatus")
-    private String prepStatus;
+  @JsonProperty("PrepStatus")
+  private String prepStatus;
 }

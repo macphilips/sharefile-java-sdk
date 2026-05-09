@@ -6,44 +6,42 @@ import io.github.indraftapp.sharefile.core.model.enums.UploadMethod;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Request payload for negotiating ShareFile upload behavior and metadata.
- */
+/** Request payload for negotiating ShareFile upload behavior and metadata. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
 public class UploadRequestParams {
 
-    @JsonProperty("Method")
-    private UploadMethod method;
+  @JsonProperty("Method")
+  private UploadMethod method;
 
-    @JsonProperty("FileName")
-    private String fileName;
+  @JsonProperty("FileName")
+  private String fileName;
 
-    @JsonProperty("FileSize")
-    private Long fileSize;
+  @JsonProperty("FileSize")
+  private Long fileSize;
 
-    @JsonProperty("Details")
-    private String details;
+  @JsonProperty("Details")
+  private String details;
 
-    @JsonProperty("IsSend")
-    private Boolean isSend;
+  @JsonProperty("IsSend")
+  private Boolean isSend;
 
-    @JsonProperty("ThreadCount")
-    private Integer threadCount;
+  @JsonProperty("ThreadCount")
+  private Integer threadCount;
 
-    @JsonProperty("Overwrite")
-    private Boolean overwrite;
+  @JsonProperty("Overwrite")
+  private Boolean overwrite;
 
-    @JsonProperty("Title")
-    private String title;
+  @JsonProperty("Title")
+  private String title;
 
-    @JsonProperty("Tool")
-    private String tool;
+  @JsonProperty("Tool")
+  private String tool;
 
-    @JsonProperty("Raw")
-    private Boolean raw;
+  @JsonProperty("Raw")
+  private Boolean raw;
 
-    @JsonProperty("BatchId")
-    private String batchId;
+  @JsonProperty("BatchId")
+  private String batchId;
 }

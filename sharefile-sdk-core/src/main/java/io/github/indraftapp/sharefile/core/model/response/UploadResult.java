@@ -5,23 +5,21 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Response payload describing the final result of a ShareFile upload.
- */
+/** Response payload describing the final result of a ShareFile upload. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
 public class UploadResult {
 
-    @JsonProperty("ItemId")
-    private String itemId;
+  @JsonProperty("ItemId")
+  private String itemId;
 
-    @JsonProperty("FileName")
-    private String fileName;
+  @JsonProperty("FileName")
+  private String fileName;
 
-    @JsonProperty("FileSize")
-    private Long fileSize;
+  @JsonProperty("FileSize")
+  private Long fileSize;
 
-    @JsonProperty("Details")
-    private String details;
+  @JsonProperty("Details")
+  private String details;
 }

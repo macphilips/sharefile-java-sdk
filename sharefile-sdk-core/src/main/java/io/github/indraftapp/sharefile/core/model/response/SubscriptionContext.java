@@ -5,17 +5,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Response payload describing the resource context for a webhook subscription.
- */
+/** Response payload describing the resource context for a webhook subscription. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
 public class SubscriptionContext {
 
-    @JsonProperty("ResourceType")
-    private String resourceType;
+  @JsonProperty("ResourceType")
+  private String resourceType;
 
-    @JsonProperty("ResourceId")
-    private String resourceId;
+  @JsonProperty("ResourceId")
+  private String resourceId;
 }

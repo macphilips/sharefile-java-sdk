@@ -1,26 +1,26 @@
 package io.github.indraftapp.sharefile.core.model;
 
-import io.github.indraftapp.sharefile.core.jackson.ShareFileObjectMapper;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.indraftapp.sharefile.core.jackson.ShareFileObjectMapper;
+import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 class ItemDeserializationTest {
 
-    private ObjectMapper mapper;
+  private ObjectMapper mapper;
 
-    @BeforeEach
-    void setUp() {
-        mapper = ShareFileObjectMapper.create();
-    }
+  @BeforeEach
+  void setUp() {
+    mapper = ShareFileObjectMapper.create();
+  }
 
-    @Test
-    void shouldDeserializeItemWithODataMetadata() throws Exception {
-        String json = """
+  @Test
+  void shouldDeserializeItemWithODataMetadata() throws Exception {
+    String json =
+        """
                 {
                     "odata.metadata": "https://example.sf-api.com/sf/v3/$metadata#Items/@Element",
                     "odata.type": "ShareFile.Api.Models.File",
@@ -35,24 +35,26 @@ class ItemDeserializationTest {
                 }
                 """;
 
-        Item item = mapper.readValue(json, Item.class);
+    Item item = mapper.readValue(json, Item.class);
 
-        assertThat(item).isInstanceOf(File.class);
-        assertThat(item.getMetadata()).isEqualTo("https://example.sf-api.com/sf/v3/$metadata#Items/@Element");
-        assertThat(item.getType()).isEqualTo("ShareFile.Api.Models.File");
-        assertThat(item.getId()).isEqualTo("item-abc-123");
-        assertThat(item.getUrl()).isEqualTo("https://example.sf-api.com/sf/v3/Items(item-abc-123)");
-        assertThat(item.getName()).isEqualTo("report.pdf");
-        assertThat(item.getFileName()).isEqualTo("report.pdf");
-        assertThat(item.getDescription()).isEqualTo("Monthly report");
-        assertThat(item.getFileSizeBytes()).isEqualTo(204800L);
-        assertThat(item.getFileSizeInKB()).isEqualTo(200);
-        assertThat(item.getIsHidden()).isFalse();
-    }
+    assertThat(item).isInstanceOf(File.class);
+    assertThat(item.getMetadata())
+        .isEqualTo("https://example.sf-api.com/sf/v3/$metadata#Items/@Element");
+    assertThat(item.getType()).isEqualTo("ShareFile.Api.Models.File");
+    assertThat(item.getId()).isEqualTo("item-abc-123");
+    assertThat(item.getUrl()).isEqualTo("https://example.sf-api.com/sf/v3/Items(item-abc-123)");
+    assertThat(item.getName()).isEqualTo("report.pdf");
+    assertThat(item.getFileName()).isEqualTo("report.pdf");
+    assertThat(item.getDescription()).isEqualTo("Monthly report");
+    assertThat(item.getFileSizeBytes()).isEqualTo(204800L);
+    assertThat(item.getFileSizeInKB()).isEqualTo(200);
+    assertThat(item.getIsHidden()).isFalse();
+  }
 
-    @Test
-    void shouldDeserializeItemWithNestedCreator() throws Exception {
-        String json = """
+  @Test
+  void shouldDeserializeItemWithNestedCreator() throws Exception {
+    String json =
+        """
                 {
                     "Id": "item-456",
                     "Name": "presentation.pptx",
@@ -65,20 +67,21 @@ class ItemDeserializationTest {
                 }
                 """;
 
-        Item item = mapper.readValue(json, Item.class);
+    Item item = mapper.readValue(json, Item.class);
 
-        assertThat(item.getId()).isEqualTo("item-456");
-        assertThat(item.getName()).isEqualTo("presentation.pptx");
-        assertThat(item.getCreator()).isNotNull();
-        assertThat(item.getCreator().getId()).isEqualTo("user-789");
-        assertThat(item.getCreator().getEmail()).isEqualTo("jane@example.com");
-        assertThat(item.getCreator().getFirstName()).isEqualTo("Jane");
-        assertThat(item.getCreator().getLastName()).isEqualTo("Smith");
-    }
+    assertThat(item.getId()).isEqualTo("item-456");
+    assertThat(item.getName()).isEqualTo("presentation.pptx");
+    assertThat(item.getCreator()).isNotNull();
+    assertThat(item.getCreator().getId()).isEqualTo("user-789");
+    assertThat(item.getCreator().getEmail()).isEqualTo("jane@example.com");
+    assertThat(item.getCreator().getFirstName()).isEqualTo("Jane");
+    assertThat(item.getCreator().getLastName()).isEqualTo("Smith");
+  }
 
-    @Test
-    void shouldDeserializeItemWithDateFields() throws Exception {
-        String json = """
+  @Test
+  void shouldDeserializeItemWithDateFields() throws Exception {
+    String json =
+        """
                 {
                     "Id": "item-date-test",
                     "Name": "dated-file.txt",
@@ -87,15 +90,16 @@ class ItemDeserializationTest {
                 }
                 """;
 
-        Item item = mapper.readValue(json, Item.class);
+    Item item = mapper.readValue(json, Item.class);
 
-        assertThat(item.getCreationDate()).isEqualTo(Instant.parse("2024-01-15T10:30:00Z"));
-        assertThat(item.getExpirationDate()).isEqualTo(Instant.parse("2025-01-15T10:30:00Z"));
-    }
+    assertThat(item.getCreationDate()).isEqualTo(Instant.parse("2024-01-15T10:30:00Z"));
+    assertThat(item.getExpirationDate()).isEqualTo(Instant.parse("2025-01-15T10:30:00Z"));
+  }
 
-    @Test
-    void shouldIgnoreUnknownProperties() throws Exception {
-        String json = """
+  @Test
+  void shouldIgnoreUnknownProperties() throws Exception {
+    String json =
+        """
                 {
                     "Id": "item-unknown",
                     "Name": "test.txt",
@@ -104,15 +108,16 @@ class ItemDeserializationTest {
                 }
                 """;
 
-        Item item = mapper.readValue(json, Item.class);
+    Item item = mapper.readValue(json, Item.class);
 
-        assertThat(item.getId()).isEqualTo("item-unknown");
-        assertThat(item.getName()).isEqualTo("test.txt");
-    }
+    assertThat(item.getId()).isEqualTo("item-unknown");
+    assertThat(item.getName()).isEqualTo("test.txt");
+  }
 
-    @Test
-    void shouldDeserializeItemWithNestedZone() throws Exception {
-        String json = """
+  @Test
+  void shouldDeserializeItemWithNestedZone() throws Exception {
+    String json =
+        """
                 {
                     "Id": "item-zone",
                     "Name": "zoned-file.txt",
@@ -123,16 +128,17 @@ class ItemDeserializationTest {
                 }
                 """;
 
-        Item item = mapper.readValue(json, Item.class);
+    Item item = mapper.readValue(json, Item.class);
 
-        assertThat(item.getZone()).isNotNull();
-        assertThat(item.getZone().getId()).isEqualTo("zone-1");
-        assertThat(item.getZone().getName()).isEqualTo("US East Storage");
-    }
+    assertThat(item.getZone()).isNotNull();
+    assertThat(item.getZone().getId()).isEqualTo("zone-1");
+    assertThat(item.getZone().getName()).isEqualTo("US East Storage");
+  }
 
-    @Test
-    void shouldDeserializeNestedItemSubtypes() throws Exception {
-        String json = """
+  @Test
+  void shouldDeserializeNestedItemSubtypes() throws Exception {
+    String json =
+        """
                 {
                     "Id": "folder-1",
                     "odata.type": "ShareFile.Api.Models.Folder",
@@ -151,16 +157,17 @@ class ItemDeserializationTest {
                 }
                 """;
 
-        Folder folder = mapper.readValue(json, Folder.class);
+    Folder folder = mapper.readValue(json, Folder.class);
 
-        assertThat(folder.getChildren()).hasSize(2);
-        assertThat(folder.getChildren().get(0)).isInstanceOf(File.class);
-        assertThat(folder.getChildren().get(1)).isInstanceOf(Note.class);
-    }
+    assertThat(folder.getChildren()).hasSize(2);
+    assertThat(folder.getChildren().get(0)).isInstanceOf(File.class);
+    assertThat(folder.getChildren().get(1)).isInstanceOf(Note.class);
+  }
 
-    @Test
-    void shouldDeserializeNestedUserSubtype() throws Exception {
-        String json = """
+  @Test
+  void shouldDeserializeNestedUserSubtype() throws Exception {
+    String json =
+        """
                 {
                     "Id": "item-1",
                     "Name": "shared-folder",
@@ -173,9 +180,9 @@ class ItemDeserializationTest {
                 }
                 """;
 
-        Item item = mapper.readValue(json, Item.class);
+    Item item = mapper.readValue(json, Item.class);
 
-        assertThat(item.getCreator()).isInstanceOf(AccountUser.class);
-        assertThat(((AccountUser) item.getCreator()).getIsAdministrator()).isTrue();
-    }
+    assertThat(item.getCreator()).isInstanceOf(AccountUser.class);
+    assertThat(((AccountUser) item.getCreator()).getIsAdministrator()).isTrue();
+  }
 }

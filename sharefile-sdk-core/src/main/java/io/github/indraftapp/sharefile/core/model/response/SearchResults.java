@@ -3,25 +3,22 @@ package io.github.indraftapp.sharefile.core.model.response;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.indraftapp.sharefile.core.model.Item;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.List;
-
-/**
- * Response payload for basic ShareFile search results.
- */
+/** Response payload for basic ShareFile search results. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
 public class SearchResults {
 
-    @JsonProperty("Results")
-    private List<Item> results;
+  @JsonProperty("Results")
+  private List<Item> results;
 
-    @JsonProperty("TotalCount")
-    private Integer totalCount;
+  @JsonProperty("TotalCount")
+  private Integer totalCount;
 
-    @JsonProperty("TimedOut")
-    private Boolean timedOut;
+  @JsonProperty("TimedOut")
+  private Boolean timedOut;
 }

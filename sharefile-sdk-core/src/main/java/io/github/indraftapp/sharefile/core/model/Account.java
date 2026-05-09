@@ -7,22 +7,20 @@ import io.github.indraftapp.sharefile.core.model.response.SSOAccountProvider;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Represents a ShareFile account and its account-level settings.
- */
+/** Represents a ShareFile account and its account-level settings. */
 @Getter
 @Setter
 public class Account extends ODataEntity {
 
-    @JsonProperty("Subdomain")
-    private String subdomain;
+  @JsonProperty("Subdomain")
+  private String subdomain;
 
-    @JsonProperty("Preferences")
-    private AccountPreferences preferences;
+  @JsonProperty("Preferences")
+  private AccountPreferences preferences;
 
-    @JsonProperty("Branding")
-    private Branding branding;
+  @JsonProperty("Branding")
+  private Branding branding;
 
-    @JsonProperty("SSO")
-    private SSOAccountProvider sso;
+  @JsonProperty("SSO")
+  private SSOAccountProvider sso;
 }

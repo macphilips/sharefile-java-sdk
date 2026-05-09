@@ -38,18 +38,18 @@ If an endpoint, model field, or behavior is unclear, do **not** guess. Mark it a
 
 ## 3. Tech Stack
 
-| Area | Standard |
-|---|---|
-| Java | Java 17+ |
-| Build | Gradle with Kotlin DSL |
-| Core HTTP | `java.net.http.HttpClient` |
-| Spring HTTP adapter | Spring `RestClient` |
-| Serialization | Jackson |
-| Boilerplate reduction | Lombok, compile-only with annotation processing |
-| JSON style | ShareFile/OData v3 JSON Light, PascalCase properties |
-| Framework requirement | None for core/client modules |
-| Optional framework | Spring Boot 3 starter |
-| Group ID | `io.github.indraftapp` |
+| Area                  | Standard                                             |
+| --------------------- | ---------------------------------------------------- |
+| Java                  | Java 17+                                             |
+| Build                 | Gradle with Kotlin DSL                               |
+| Core HTTP             | `java.net.http.HttpClient`                           |
+| Spring HTTP adapter   | Spring `RestClient`                                  |
+| Serialization         | Jackson                                              |
+| Boilerplate reduction | Lombok, compile-only with annotation processing      |
+| JSON style            | ShareFile/OData v3 JSON Light, PascalCase properties |
+| Framework requirement | None for core/client modules                         |
+| Optional framework    | Spring Boot 3 starter                                |
+| Group ID              | `io.github.indraftapp`                               |
 
 Use only dependencies approved in the tech spec or ticket being implemented.
 
@@ -59,13 +59,13 @@ Use only dependencies approved in the tech spec or ticket being implemented.
 
 Expected modules:
 
-| Module | Purpose |
-|---|---|
-| `sharefile-sdk-core` | Models, enums, OData builder, exceptions. No application framework dependencies. |
-| `sharefile-sdk-client` | Resource clients, HTTP transport, authentication, retry, transfer pipeline. Pure Java 17. |
-| `sharefile-spring-boot-starter` | Auto-configuration, configuration properties, Micrometer metrics, Actuator health. |
-| `sharefile-sdk-bom` | BOM for dependency/version alignment. |
-| `sharefile-sdk-test` | WireMock fixtures, `MockHttpTransport`, test utilities, `@ShareFileMockServer`. |
+| Module                          | Purpose                                                                                   |
+| ------------------------------- | ----------------------------------------------------------------------------------------- |
+| `sharefile-sdk-core`            | Models, enums, OData builder, exceptions. No application framework dependencies.          |
+| `sharefile-sdk-client`          | Resource clients, HTTP transport, authentication, retry, transfer pipeline. Pure Java 17. |
+| `sharefile-spring-boot-starter` | Auto-configuration, configuration properties, Micrometer metrics, Actuator health.        |
+| `sharefile-sdk-bom`             | BOM for dependency/version alignment.                                                     |
+| `sharefile-sdk-test`            | WireMock fixtures, `MockHttpTransport`, test utilities, `@ShareFileMockServer`.           |
 
 Do not collapse modules unless explicitly instructed.
 
@@ -182,16 +182,16 @@ Do not hide async responses or pretend these operations are always synchronous.
 
 Default retry behavior:
 
-| Method / Condition | Default |
-|---|---|
-| `GET` | Retry transient failures |
-| `PUT` | Retry transient failures only when safe |
-| `POST` | No retry unless explicitly opted in |
-| `PATCH` | No retry unless explicitly opted in |
-| `DELETE` | No retry unless explicitly opted in |
-| `401` | Refresh token and retry once |
-| `429` | Honor `Retry-After` when available |
-| `5xx` | Retry only if method is retry-safe |
+| Method / Condition | Default                                 |
+| ------------------ | --------------------------------------- |
+| `GET`              | Retry transient failures                |
+| `PUT`              | Retry transient failures only when safe |
+| `POST`             | No retry unless explicitly opted in     |
+| `PATCH`            | No retry unless explicitly opted in     |
+| `DELETE`           | No retry unless explicitly opted in     |
+| `401`              | Refresh token and retry once            |
+| `429`              | Honor `Retry-After` when available      |
+| `5xx`              | Retry only if method is retry-safe      |
 
 Do not add default retry-on-delete behavior.
 
@@ -379,13 +379,13 @@ If implementing async operations, preserve interrupt status when catching `Inter
 
 Use the narrowest visibility possible.
 
-| Type | Visibility |
-|---|---|
-| Public SDK API | `public` |
+| Type                            | Visibility                             |
+| ------------------------------- | -------------------------------------- |
+| Public SDK API                  | `public`                               |
 | Resource client implementations | `public final` only if part of SDK API |
-| Internal helpers | package-private |
-| DTO internals | package-private where possible |
-| Test fixtures | test module only |
+| Internal helpers                | package-private                        |
+| DTO internals                   | package-private where possible         |
+| Test fixtures                   | test module only                       |
 
 Do not expose internal infrastructure as public API unless the spec requires it.
 

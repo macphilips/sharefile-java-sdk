@@ -10,12 +10,12 @@ Individual ticket files are in [`docs/tickets/`](tickets/).
 
 ## Release Milestones
 
-| Milestone | Tickets | Scope |
-|-----------|---------|-------|
+| Milestone      | Tickets              | Scope                                                                                                                            |
+| -------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | **v0.1 — MVP** | SF-01 → SF-14, SF-19 | Auth, OData, streaming HTTP, all Tier 1 resource clients, TransferClient, metrics SPI, builder, typed exceptions, WireMock tests |
-| **v0.2** | SF-15, SF-16 | Pagination, Tier 2 resource clients (Groups, Webhooks, Sessions) |
-| **v0.3** | SF-17, SF-18 | Spring Boot starter, Micrometer metrics, health indicator |
-| **v1.0** | SF-19, SF-20 | Test infrastructure, CI/CD, Maven Central publishing |
+| **v0.2**       | SF-15, SF-16         | Pagination, Tier 2 resource clients (Groups, Webhooks, Sessions)                                                                 |
+| **v0.3**       | SF-17, SF-18         | Spring Boot starter, Micrometer metrics, health indicator                                                                        |
+| **v1.0**       | SF-19, SF-20         | Test infrastructure, CI/CD, Maven Central publishing                                                                             |
 
 ---
 
@@ -86,6 +86,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
 ### Requirements
 
 1. Create root `build.gradle.kts` with:
+
    - `io.github.gradle-nexus.publish-plugin` v2.0.0
    - Sonatype OSSRH config reading from environment variables `OSSRH_USERNAME` / `OSSRH_PASSWORD`
    - Subproject defaults: `java-library`, `maven-publish`, `signing` plugins
@@ -96,6 +97,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    - Signing only for non-SNAPSHOT versions
 
 2. Create `settings.gradle.kts` including all modules:
+
    - `sharefile-sdk-core`
    - `sharefile-sdk-client`
    - `sharefile-spring-boot-starter`
@@ -103,6 +105,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    - `sharefile-sdk-test`
 
 3. Create `gradle.properties`:
+
    ```properties
    group=io.github.indraftapp
    version=1.0.0-SNAPSHOT
@@ -111,6 +114,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
 4. Create each module's `build.gradle.kts` with exact dependencies per §17:
 
    **sharefile-sdk-core:**
+
    ```kotlin
    dependencies {
        implementation("com.fasterxml.jackson.core:jackson-databind")
@@ -119,6 +123,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    ```
 
    **sharefile-sdk-client:**
+
    ```kotlin
    dependencies {
        api(project(":sharefile-sdk-core"))
@@ -127,6 +132,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    ```
 
    **sharefile-spring-boot-starter:**
+
    ```kotlin
    dependencies {
        api(project(":sharefile-sdk-client"))
@@ -139,6 +145,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    ```
 
    **sharefile-sdk-bom:**
+
    ```kotlin
    plugins { id("java-platform") }
    dependencies {
@@ -151,6 +158,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    ```
 
    **sharefile-sdk-test:**
+
    ```kotlin
    dependencies {
        api(project(":sharefile-sdk-client"))
@@ -184,6 +192,7 @@ Implement all entity POJOs, the `ODataEntity` base class, `ODataFeed<T>` collect
 ### Requirements
 
 1. **Base class** — `ODataEntity` per §8.1:
+
    ```java
    public abstract class ODataEntity {
        @JsonProperty("odata.metadata") private String metadata;
@@ -195,11 +204,13 @@ Implement all entity POJOs, the `ODataEntity` base class, `ODataFeed<T>` collect
    ```
 
 2. **ODataFeed<T>** per §8.2:
+
    - Fields: `odata.count` (Integer), `odata.nextLink` (String), `value` (List<T>)
    - Implements `Iterable<T>`
    - `hasNextPage()`, `getItems()` methods
 
 3. **Entity hierarchy** per §8.3 — all types extend `ODataEntity`:
+
    - `Item` (with subclasses `File`, `Folder`, `Note`, `Link`, `SymbolicLink`)
    - `User` (with subclass `AccountUser`)
    - `Share`, `Group`, `Account`, `AccessControl`, `Zone`, `Device`, `DeviceUser`
@@ -211,6 +222,7 @@ Implement all entity POJOs, the `ODataEntity` base class, `ODataFeed<T>` collect
    Refer to `docs/API_REFERENCE.md` §13 for all field names and types. Use Jackson `@JsonProperty` with PascalCase names.
 
 4. **OperationResult<T>** sealed interface per §8.4:
+
    ```java
    public sealed interface OperationResult<T> {
        record Completed<T>(T entity) implements OperationResult<T> {}
@@ -222,6 +234,7 @@ Implement all entity POJOs, the `ODataEntity` base class, `ODataFeed<T>` collect
    ```
 
 5. **Enums** per §8.5 and API_REFERENCE.md §14:
+
    - `ShareType`, `UploadMethod`, `TreeMode`, `ItemOrderingMode`, `DlpStatus`, `PreviewStatus`, `ZoneService`, `GrantType`
    - All enums must use Jackson `@JsonValue` / `@JsonCreator` for serialization.
 
@@ -365,6 +378,7 @@ Create the SDK's default `ObjectMapper` configuration and custom deserializers.
 2. **ODataFeedDeserializer** for unwrapping `{ "odata.count": N, "value": [...] }`.
 
 3. **ODataTypeResolver** — inspects `odata.type` JSON field for polymorphic dispatch:
+
    - `ShareFile.Api.Models.File` → `File.class`, etc.
    - Critical for `OperationResult<T>` and `Item` type hierarchy.
 
@@ -394,6 +408,7 @@ Implement the `HttpTransport` SPI with **streaming support** and the default JDK
 ### Requirements
 
 1. **HttpTransport** interface per §4.1 — streaming-first design:
+
    ```java
    public interface HttpTransport {
        HttpResponse execute(HttpRequest request) throws ShareFileNetworkException;
@@ -420,6 +435,7 @@ Implement the `HttpTransport` SPI with **streaming support** and the default JDK
    **Design rationale from spec:** File transfers can be multi-GB. The transport must never require buffering entire upload/download bodies as byte arrays. For JSON API calls (typically < 1MB), callers use `bodyBytes()`. For file transfers, callers consume `bodyStream()` directly.
 
 2. **Request construction helpers** (package-private):
+
    ```java
    HttpRequests.json("POST", uri, jsonBytes, timeout)       // JSON API calls
    HttpRequests.streaming("POST", uri, inputStream, size, timeout)  // file uploads
@@ -427,6 +443,7 @@ Implement the `HttpTransport` SPI with **streaming support** and the default JDK
    ```
 
 3. **JdkHttpTransport** per §4.2:
+
    - Uses `java.net.http.HttpClient` with `BodyHandlers.ofInputStream()` — never buffers full response
    - Configurable connect timeout from `ShareFileConfig`
    - `followRedirects` set to `NEVER`
@@ -461,6 +478,7 @@ Implement `CredentialProvider`, `Credentials`, `TokenManager`, `TokenStore`, and
 #### CredentialProvider (§5.2)
 
 1. **CredentialProvider** interface:
+
    ```java
    @FunctionalInterface
    public interface CredentialProvider {
@@ -469,6 +487,7 @@ Implement `CredentialProvider`, `Credentials`, `TokenManager`, `TokenStore`, and
    ```
 
 2. **Credentials** record with builder:
+
    ```java
    public record Credentials(
        String clientId, String clientSecret,
@@ -505,6 +524,7 @@ Implement `CredentialProvider`, `Credentials`, `TokenManager`, `TokenStore`, and
    **Critical:** Refresh-token grant uses only `client_id`, `client_secret`, and `refresh_token` — it does NOT call `CredentialProvider.resolve()`. The credential provider is only called for initial authentication or when refresh fails entirely.
 
 6. **TokenManager holds client credentials separately** (extracted once at build time via initial `CredentialProvider.resolve()` or builder convenience methods):
+
    ```java
    final class TokenManager implements AutoCloseable {
        private final String clientId;
@@ -559,6 +579,7 @@ Implement the internal request pipeline and retry engine as a single ticket — 
 #### ShareFileHttpClient (§4.4)
 
 1. Internal class wrapping `HttpTransport`:
+
    ```java
    final class ShareFileHttpClient {
        private final HttpTransport transport;
@@ -571,6 +592,7 @@ Implement the internal request pipeline and retry engine as a single ticket — 
    ```
 
 2. **Request pipeline** per §4.5:
+
    - Serialize body with Jackson → pass as `InputStream` via `HttpRequests.json()`
    - Build URI: `baseUrl + path + OData query params`
    - Attach `Authorization: Bearer {token}` from TokenManager
@@ -589,6 +611,7 @@ Implement the internal request pipeline and retry engine as a single ticket — 
 4. **RetryConfig**: `maxRetries` (3), `initialBackoff` (1s), `backoffMultiplier` (2.0), `jitterFactor` (0.2), `retryableStatuses` ({429, 500, 502, 503, 504}), `retryOnConnectionFailure` (true).
 
 5. **Retry policy** per §10.2:
+
    - 429: honor `Retry-After` header, else 5s/10s/20s, up to 3 retries
    - 5xx: exponential backoff + jitter, up to 3 retries
    - Connection failure: 2 retries for idempotent methods only (GET, PUT)
@@ -627,6 +650,7 @@ Implement the internal `ResourceRequestExecutor` helper and the first resource c
 #### ResourceRequestExecutor (§6.1)
 
 1. Package-private helper shared by all resource clients:
+
    ```java
    final class ResourceRequestExecutor {
        private final ShareFileHttpClient httpClient;
@@ -651,17 +675,17 @@ Implement the internal `ResourceRequestExecutor` helper and the first resource c
 
 2. **All methods** per §6.3 and the endpoint coverage matrix in §6.8. Use the matrix as the source of truth for HTTP method, endpoint URL, request/response types. Key methods:
 
-   | SDK Method | HTTP | Endpoint | Response | Notes |
-   |---|---|---|---|---|
-   | `getById(id)` | GET | `/Items({id})` | `Item` | Supports `home`, `favorites`, etc. |
-   | `getChildren(id, query)` | GET | `/Items({id})/Children` | `ODataFeed<Item>` | |
-   | `getByPath(path)` | GET | `/Items/ByPath?path=...` | `Item` | |
-   | `createFolder(parentId, req)` | POST | `/Items({parentId})/Folder` | `Item` | |
-   | `update(id, item)` | PATCH | `/Items({id})` | `OperationResult<Item>` | **Async** if cross-zone |
-   | `copy(id, targetId, overwrite)` | POST | `/Items({id})/Copy?...` | `OperationResult<Item>` | **Async** if cross-zone |
-   | `delete(id)` | DELETE | `/Items({id})` | — | |
-   | `upload(folderId, file, opts)` | — | — | `UploadResult` | Delegates to TransferClient |
-   | `download(itemId, target, opts)` | — | — | — | Delegates to TransferClient |
+   | SDK Method                       | HTTP   | Endpoint                    | Response                | Notes                              |
+   | -------------------------------- | ------ | --------------------------- | ----------------------- | ---------------------------------- |
+   | `getById(id)`                    | GET    | `/Items({id})`              | `Item`                  | Supports `home`, `favorites`, etc. |
+   | `getChildren(id, query)`         | GET    | `/Items({id})/Children`     | `ODataFeed<Item>`       |                                    |
+   | `getByPath(path)`                | GET    | `/Items/ByPath?path=...`    | `Item`                  |                                    |
+   | `createFolder(parentId, req)`    | POST   | `/Items({parentId})/Folder` | `Item`                  |                                    |
+   | `update(id, item)`               | PATCH  | `/Items({id})`              | `OperationResult<Item>` | **Async** if cross-zone            |
+   | `copy(id, targetId, overwrite)`  | POST   | `/Items({id})/Copy?...`     | `OperationResult<Item>` | **Async** if cross-zone            |
+   | `delete(id)`                     | DELETE | `/Items({id})`              | —                       |                                    |
+   | `upload(folderId, file, opts)`   | —      | —                           | `UploadResult`          | Delegates to TransferClient        |
+   | `download(itemId, target, opts)` | —      | —                           | —                       | Delegates to TransferClient        |
 
    (See full matrix in TECH_SPEC.md §6.8 for all ~25 methods)
 
@@ -694,6 +718,7 @@ Implement `AccessControlsClient` (composite keys, async-polymorphic) and `AsyncO
 ### Requirements
 
 1. **AccessControlsClient** per §6.4 and §6.8 endpoint matrix:
+
    - Composite key: `getById(principalId, itemId)` → `GET /AccessControls(principalid={p},itemid={i})`
    - `getByItem(itemId)` → `GET /Items({itemId})/AccessControls`
    - `create(itemId, acl, recursive)` → `OperationResult<AccessControl>` (**async** if recursive=true)
@@ -733,6 +758,7 @@ Implement `SharesClient` and `UsersClient` with all their resource-specific meth
 ### Requirements
 
 1. **SharesClient** per §6.6 and §6.8 endpoint matrix:
+
    - `getById`, `list`, `update`, `delete`
    - **Explicit share creation** (not generic `create`): `createSendShare(req)`, `createRequestShare(req)`
    - `getByUser(userId)`, `getRecipients(shareId)`, `sendNotification(shareId, req)`
@@ -769,6 +795,7 @@ Implement the upload and download pipelines with streaming transport, sync/async
 #### Upload Pipeline (§12.2-12.5)
 
 1. **TransferClient** (was TransferService) per §12.2:
+
    ```java
    public final class TransferClient {
        UploadResult upload(String folderId, Path file, UploadOptions options);
@@ -780,6 +807,7 @@ Implement the upload and download pipelines with streaming transport, sync/async
    ```
 
 2. **Three-phase pipeline** per §12.4:
+
    - Phase 1 (Negotiate): POST `/Items({folderId})/Upload2` → `UploadSpecification`
    - Phase 2 (Transfer): POST file bytes via **streaming `InputStream`** to ChunkUri using **unauthenticated** `HttpTransport`. Uses `HttpRequests.streaming()` — never buffers entire file.
      - Standard: single POST, file < 4MB
@@ -794,6 +822,7 @@ Implement the upload and download pipelines with streaming transport, sync/async
 #### Download Pipeline (§12.6-12.7)
 
 5. **Download methods:**
+
    ```java
    void download(String itemId, Path target, DownloadOptions options);
    InputStream downloadStream(String itemId, DownloadOptions options);
@@ -870,12 +899,14 @@ Implement `ShareFileClient` and `ShareFileClientBuilder` — the main entry poin
 ### Requirements
 
 1. **ShareFileClient** per §3.1:
+
    - `static builder()` returns `ShareFileClientBuilder`
    - Resource client accessors: `items()`, `users()`, `shares()`, `accessControls()`, `asyncOperations()`, `transfers()`, plus stubs for tier 2/3 clients (groups, webhooks, sessions, accounts, zones)
    - `checkHealth()` per §11.5
    - Implements `AutoCloseable`
 
 2. **ShareFileClientBuilder** per §3.2:
+
    - Required: `subdomain(String)`
    - Credentials: `credentialProvider(CredentialProvider)`, `clientCredentials()` + `authorizationCode()` (recommended), `accessToken()`, `passwordGrant()` (legacy)
    - Optional: `apiControlPlane`, timeouts, `httpTransport`, `tokenStore`, `metricsProvider`, `objectMapper`, `executor`, `retryConfig`, `tokenRefreshBuffer`, `baseUrl` (testing)
@@ -969,6 +1000,7 @@ Implement Spring Boot auto-configuration that creates a `ShareFileClient` bean f
 ### Requirements
 
 1. **ShareFileAutoConfiguration** per §14.1:
+
    - `@AutoConfiguration`, `@ConditionalOnClass`, `@EnableConfigurationProperties`
    - Accepts `Optional<CredentialProvider>` — overrides properties if present
    - Accepts `Optional<MeterRegistry>` — plugs in `MicrometerMetricsProvider`

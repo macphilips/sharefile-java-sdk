@@ -1,10 +1,10 @@
 # ShareFile REST API Reference
 
-**API Version:** v3  
-**Base URL:** `https://{subdomain}.sf-api.com/sf/v3`  
-**Protocol:** OData v3 (JSON Light)  
-**Authentication:** OAuth2 Bearer Token  
-**Date:** 2026-05-08  
+**API Version:** v3
+**Base URL:** `https://{subdomain}.sf-api.com/sf/v3`
+**Protocol:** OData v3 (JSON Light)
+**Authentication:** OAuth2 Bearer Token
+**Date:** 2026-05-08
 
 ---
 
@@ -37,12 +37,12 @@
 GET https://secure.sharefile.com/oauth/authorize
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `response_type` | String | Yes | `code` (recommended) or `token` |
-| `client_id` | String | Yes | Application client ID |
-| `redirect_uri` | String | Yes | HTTPS callback URL |
-| `state` | String | Recommended | CSRF prevention token |
+| Parameter       | Type   | Required    | Description                     |
+| --------------- | ------ | ----------- | ------------------------------- |
+| `response_type` | String | Yes         | `code` (recommended) or `token` |
+| `client_id`     | String | Yes         | Application client ID           |
+| `redirect_uri`  | String | Yes         | HTTPS callback URL              |
+| `state`         | String | Recommended | CSRF prevention token           |
 
 **Step 2: Exchange code for token**
 
@@ -51,12 +51,12 @@ POST https://{subdomain}.{apicp}/oauth/token
 Content-Type: application/x-www-form-urlencoded
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `grant_type` | String | Yes | `authorization_code` |
-| `code` | String | Yes | Authorization code from redirect |
-| `client_id` | String | Yes | Application client ID |
-| `client_secret` | String | Yes | Application client secret |
+| Parameter       | Type   | Required | Description                      |
+| --------------- | ------ | -------- | -------------------------------- |
+| `grant_type`    | String | Yes      | `authorization_code`             |
+| `code`          | String | Yes      | Authorization code from redirect |
+| `client_id`     | String | Yes      | Application client ID            |
+| `client_secret` | String | Yes      | Application client secret        |
 
 **Response:**
 
@@ -79,13 +79,13 @@ POST https://{subdomain}.{apicp}/oauth/token
 Content-Type: application/x-www-form-urlencoded
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `grant_type` | String | Yes | `password` |
-| `username` | String | Yes | User email address |
-| `password` | String | Yes | User password |
-| `client_id` | String | Yes | Application client ID |
-| `client_secret` | String | Yes | Application client secret |
+| Parameter       | Type   | Required | Description               |
+| --------------- | ------ | -------- | ------------------------- |
+| `grant_type`    | String | Yes      | `password`                |
+| `username`      | String | Yes      | User email address        |
+| `password`      | String | Yes      | User password             |
+| `client_id`     | String | Yes      | Application client ID     |
+| `client_secret` | String | Yes      | Application client secret |
 
 ### 1.3 Refresh Token
 
@@ -94,12 +94,12 @@ POST https://{subdomain}.{apicp}/oauth/token
 Content-Type: application/x-www-form-urlencoded
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `grant_type` | String | Yes | `refresh_token` |
-| `refresh_token` | String | Yes | Current refresh token |
-| `client_id` | String | Yes | Application client ID |
-| `client_secret` | String | Yes | Application client secret |
+| Parameter       | Type   | Required | Description               |
+| --------------- | ------ | -------- | ------------------------- |
+| `grant_type`    | String | Yes      | `refresh_token`           |
+| `refresh_token` | String | Yes      | Current refresh token     |
+| `client_id`     | String | Yes      | Application client ID     |
+| `client_secret` | String | Yes      | Application client secret |
 
 ### 1.4 Using the Token
 
@@ -131,27 +131,27 @@ https://{server}/sf/v3/{Entity}({id})/{Action}
 
 ### 2.2 Query Parameters
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `$select` | Return only specified properties | `$select=Name,Email,CreationDate` |
-| `$expand` | Include related entities inline | `$expand=Parent,Zone` or `$expand=*` |
-| `$filter` | Filter results | `$filter=Name eq 'Reports'` |
-| `$orderby` | Sort results | `$orderby=CreationDate desc` |
-| `$top` | Limit result count | `$top=100` |
-| `$skip` | Offset for pagination | `$skip=50` |
+| Parameter  | Description                      | Example                              |
+| ---------- | -------------------------------- | ------------------------------------ |
+| `$select`  | Return only specified properties | `$select=Name,Email,CreationDate`    |
+| `$expand`  | Include related entities inline  | `$expand=Parent,Zone` or `$expand=*` |
+| `$filter`  | Filter results                   | `$filter=Name eq 'Reports'`          |
+| `$orderby` | Sort results                     | `$orderby=CreationDate desc`         |
+| `$top`     | Limit result count               | `$top=100`                           |
+| `$skip`    | Offset for pagination            | `$skip=50`                           |
 
 ### 2.3 Filter Operators
 
-| Operator | Example |
-|----------|---------|
-| `eq` | `$filter=Name eq 'file.txt'` |
-| `ne` | `$filter=IsHidden ne true` |
-| `gt` / `lt` | `$filter=FileSizeBytes gt 1000000` |
-| `substringof` | `$filter=substringof('report', Name)` |
-| `startswith` | `$filter=startswith(Name, 'Q1')` |
-| `endswith` | `$filter=endswith(Name, '.pdf')` |
-| `isof` | `$filter=isof('ShareFile.Api.Models.File')` |
-| `and` / `or` | `$filter=IsHidden eq false and FileSizeBytes gt 0` |
+| Operator      | Example                                            |
+| ------------- | -------------------------------------------------- |
+| `eq`          | `$filter=Name eq 'file.txt'`                       |
+| `ne`          | `$filter=IsHidden ne true`                         |
+| `gt` / `lt`   | `$filter=FileSizeBytes gt 1000000`                 |
+| `substringof` | `$filter=substringof('report', Name)`              |
+| `startswith`  | `$filter=startswith(Name, 'Q1')`                   |
+| `endswith`    | `$filter=endswith(Name, '.pdf')`                   |
+| `isof`        | `$filter=isof('ShareFile.Api.Models.File')`        |
+| `and` / `or`  | `$filter=IsHidden eq false and FileSizeBytes gt 0` |
 
 ### 2.4 Response Format
 
@@ -183,13 +183,13 @@ https://{server}/sf/v3/{Entity}({id})/{Action}
 
 ### 2.5 HTTP Methods
 
-| Method | Purpose |
-|--------|---------|
-| `GET` | Read (no side effects) |
-| `POST` | Create new entities, trigger actions |
-| `PATCH` | Partial update of existing entities |
-| `PUT` | Full replacement (rare, used for Roles) |
-| `DELETE` | Remove entities |
+| Method   | Purpose                                 |
+| -------- | --------------------------------------- |
+| `GET`    | Read (no side effects)                  |
+| `POST`   | Create new entities, trigger actions    |
+| `PATCH`  | Partial update of existing entities     |
+| `PUT`    | Full replacement (rare, used for Roles) |
+| `DELETE` | Remove entities                         |
 
 ---
 
@@ -217,10 +217,10 @@ Returns the home folder for the authenticated user.
 GET /sf/v3/Items({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item identifier (or special ID like `home`) |
-| `includeDeleted` | Boolean | No | Include deleted items |
+| Parameter        | Type    | Required | Description                                 |
+| ---------------- | ------- | -------- | ------------------------------------------- |
+| `id`             | String  | Yes      | Item identifier (or special ID like `home`) |
+| `includeDeleted` | Boolean | No       | Include deleted items                       |
 
 **Response:** `Item`
 
@@ -232,13 +232,13 @@ GET /sf/v3/Items({id})
 GET /sf/v3/Items({id})/TreeView
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Folder ID |
-| `treemode` | TreeMode | Yes | `copy`, `move`, or `manage` |
-| `sourceId` | String | No | Source item for the operation |
-| `canCreateRootFolder` | Boolean | No | Allow root folder creation |
-| `fileBox` | Boolean | No | FileBox parameter |
+| Parameter             | Type     | Required | Description                   |
+| --------------------- | -------- | -------- | ----------------------------- |
+| `id`                  | String   | Yes      | Folder ID                     |
+| `treemode`            | TreeMode | Yes      | `copy`, `move`, or `manage`   |
+| `sourceId`            | String   | No       | Source item for the operation |
+| `canCreateRootFolder` | Boolean  | No       | Allow root folder creation    |
+| `fileBox`             | Boolean  | No       | FileBox parameter             |
 
 **Response:** Tree root `Item`
 
@@ -250,9 +250,9 @@ GET /sf/v3/Items({id})/TreeView
 GET /sf/v3/ConnectorGroups({id})/Children
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Connector group ID |
+| Parameter | Type   | Required | Description        |
+| --------- | ------ | -------- | ------------------ |
+| `id`      | String | Yes      | Connector group ID |
 
 **Response:** Feed of `SymbolicLink`
 
@@ -264,10 +264,10 @@ GET /sf/v3/ConnectorGroups({id})/Children
 GET /sf/v3/Items({id})/Stream
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Stream ID |
-| `includeDeleted` | Boolean | No | Include expired items |
+| Parameter        | Type    | Required | Description           |
+| ---------------- | ------- | -------- | --------------------- |
+| `id`             | String  | Yes      | Stream ID             |
+| `includeDeleted` | Boolean | No       | Include expired items |
 
 **Response:** Feed of `Item` (file versions)
 
@@ -279,9 +279,9 @@ GET /sf/v3/Items({id})/Stream
 GET /sf/v3/Items/ByPath
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `path` | String | Yes | Absolute path, e.g. `/folder1/folder2/file.txt` |
+| Parameter | Type   | Required | Description                                     |
+| --------- | ------ | -------- | ----------------------------------------------- |
+| `path`    | String | Yes      | Absolute path, e.g. `/folder1/folder2/file.txt` |
 
 **Response:** `Item`
 
@@ -293,10 +293,10 @@ GET /sf/v3/Items/ByPath
 GET /sf/v3/Items({id})/ByPath
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Root item ID |
-| `path` | String | Yes | Relative path from root |
+| Parameter | Type   | Required | Description             |
+| --------- | ------ | -------- | ----------------------- |
+| `id`      | String | Yes      | Root item ID            |
+| `path`    | String | Yes      | Relative path from root |
 
 **Response:** `Item`
 
@@ -308,9 +308,9 @@ GET /sf/v3/Items({id})/ByPath
 GET /sf/v3/Items({id})/Parent
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | Item ID     |
 
 **Response:** `Item`
 
@@ -322,11 +322,11 @@ GET /sf/v3/Items({id})/Parent
 GET /sf/v3/Items({id})/Children
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Folder ID |
-| `includeDeleted` | Boolean | No | Include deleted children |
-| `orderingMode` | ItemOrderingMode | No | Sort: `FoldersFirst` (default), `DateDesc`, `DateAsc`, `NameAsc`, `NameDesc` |
+| Parameter        | Type             | Required | Description                                                                  |
+| ---------------- | ---------------- | -------- | ---------------------------------------------------------------------------- |
+| `id`             | String           | Yes      | Folder ID                                                                    |
+| `includeDeleted` | Boolean          | No       | Include deleted children                                                     |
+| `orderingMode`   | ItemOrderingMode | No       | Sort: `FoldersFirst` (default), `DateDesc`, `DateAsc`, `NameAsc`, `NameDesc` |
 
 **Response:** Feed of `Item`
 
@@ -338,9 +338,9 @@ GET /sf/v3/Items({id})/Children
 GET /sf/v3/Items({id})/Info
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Folder ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | Folder ID   |
 
 **Response:** `ItemInfo`
 
@@ -352,12 +352,12 @@ GET /sf/v3/Items({id})/Info
 GET /sf/v3/Items({id})/Download
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
-| `redirect` | Boolean | No | `true` = 302 redirect, `false` = DownloadSpecification |
-| `includeAllVersions` | Boolean | No | Include old file versions in folder downloads |
-| `includeDeleted` | Boolean | No | Include archived items (admin only) |
+| Parameter            | Type    | Required | Description                                            |
+| -------------------- | ------- | -------- | ------------------------------------------------------ |
+| `id`                 | String  | Yes      | Item ID                                                |
+| `redirect`           | Boolean | No       | `true` = 302 redirect, `false` = DownloadSpecification |
+| `includeAllVersions` | Boolean | No       | Include old file versions in folder downloads          |
+| `includeDeleted`     | Boolean | No       | Include archived items (admin only)                    |
 
 **Response:** 302 redirect to download URL, or `DownloadSpecification`
 
@@ -369,11 +369,11 @@ GET /sf/v3/Items({id})/Download
 GET /sf/v3/Items({id})/Thumbnail
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
-| `size` | Int32 | No | `75` (default) or `600` pixels |
-| `redirect` | Boolean | No | `true` = 302 redirect, `false` = `Redirection` object |
+| Parameter  | Type    | Required | Description                                           |
+| ---------- | ------- | -------- | ----------------------------------------------------- |
+| `id`       | String  | Yes      | Item ID                                               |
+| `size`     | Int32   | No       | `75` (default) or `600` pixels                        |
+| `redirect` | Boolean | No       | `true` = 302 redirect, `false` = `Redirection` object |
 
 **Response:** 302 redirect or `Redirection`
 
@@ -385,9 +385,9 @@ GET /sf/v3/Items({id})/Thumbnail
 GET /sf/v3/Items({id})/Breadcrumbs
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Target item ID |
+| Parameter | Type   | Required | Description    |
+| --------- | ------ | -------- | -------------- |
+| `id`      | String | Yes      | Target item ID |
 
 **Response:** Feed of `Item` representing path from root to target
 
@@ -399,12 +399,12 @@ GET /sf/v3/Items({id})/Breadcrumbs
 GET /sf/v3/Items/Search
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `query` | String | Yes | Search query string |
-| `maxResults` | Int32 | No | Maximum results |
-| `skip` | Int32 | No | Results to skip |
-| `homeFolderOnly` | Boolean | No | Search only user's home folder |
+| Parameter        | Type    | Required | Description                    |
+| ---------------- | ------- | -------- | ------------------------------ |
+| `query`          | String  | Yes      | Search query string            |
+| `maxResults`     | Int32   | No       | Maximum results                |
+| `skip`           | Int32   | No       | Results to skip                |
+| `homeFolderOnly` | Boolean | No       | Search only user's home folder |
 
 **Response:** `SearchResults`
 
@@ -416,12 +416,12 @@ GET /sf/v3/Items/Search
 GET /sf/v3/Items({id})/Search
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Parent folder ID |
-| `query` | String | Yes | Search query string |
-| `maxResults` | Int32 | No | Maximum results (default: 50) |
-| `skip` | Int32 | No | Results to skip (default: 0) |
+| Parameter    | Type   | Required | Description                   |
+| ------------ | ------ | -------- | ----------------------------- |
+| `id`         | String | Yes      | Parent folder ID              |
+| `query`      | String | Yes      | Search query string           |
+| `maxResults` | Int32  | No       | Maximum results (default: 50) |
+| `skip`       | Int32  | No       | Results to skip (default: 0)  |
 
 **Response:** `SearchResults`
 
@@ -433,9 +433,9 @@ GET /sf/v3/Items({id})/Search
 GET /sf/v3/Items({id})/WebView
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | Item ID     |
 
 **Response:** `Redirection` to web edit application
 
@@ -447,10 +447,10 @@ GET /sf/v3/Items({id})/WebView
 GET /sf/v3/Items({id})/ProtocolLinks({platform})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
-| `platform` | String | Yes | `all`, `web`, `webandmobile`, or `mobile` |
+| Parameter  | Type   | Required | Description                               |
+| ---------- | ------ | -------- | ----------------------------------------- |
+| `id`       | String | Yes      | Item ID                                   |
+| `platform` | String | Yes      | `all`, `web`, `webandmobile`, or `mobile` |
 
 **Response:** List of protocol links
 
@@ -462,9 +462,9 @@ GET /sf/v3/Items({id})/ProtocolLinks({platform})
 GET /sf/v3/Items({id})/Redirection
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | Item ID     |
 
 **Response:** `Redirection`
 
@@ -476,9 +476,9 @@ GET /sf/v3/Items({id})/Redirection
 GET /sf/v3/Items({id})/DeletedChildren
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Parent folder ID |
+| Parameter | Type   | Required | Description      |
+| --------- | ------ | -------- | ---------------- |
+| `id`      | String | Yes      | Parent folder ID |
 
 **Response:** Feed of recoverable/deleted `Item`
 
@@ -490,10 +490,10 @@ GET /sf/v3/Items({id})/DeletedChildren
 GET /sf/v3/Items/UserDeletedItems
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `userid` | String | Yes | User ID |
-| `zone` | String | No | Zone ID filter |
+| Parameter | Type   | Required | Description    |
+| --------- | ------ | -------- | -------------- |
+| `userid`  | String | Yes      | User ID        |
+| `zone`    | String | No       | Zone ID filter |
 
 **Response:** Feed of deleted `Item`
 
@@ -505,11 +505,11 @@ GET /sf/v3/Items/UserDeletedItems
 GET /sf/v3/Items/ByDlpStatus
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `status` | DlpStatus | Yes | `Unscanned`, `ScannedOK`, or `ScannedRejected` |
-| `zone` | String | No | Zone ID |
-| `enddate` | DateTime | No | Creation date filter |
+| Parameter | Type      | Required | Description                                    |
+| --------- | --------- | -------- | ---------------------------------------------- |
+| `status`  | DlpStatus | Yes      | `Unscanned`, `ScannedOK`, or `ScannedRejected` |
+| `zone`    | String    | No       | Zone ID                                        |
+| `enddate` | DateTime  | No       | Creation date filter                           |
 
 **Response:** Feed of `Item`
 
@@ -521,11 +521,11 @@ GET /sf/v3/Items/ByDlpStatus
 POST /sf/v3/Items({parentId})/Folder
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `parentId` | String | Yes | Parent folder ID |
-| `overwrite` | Boolean | No | Overwrite existing (default: false) |
-| `passthrough` | Boolean | No | Passthrough flag |
+| Parameter     | Type    | Required | Description                         |
+| ------------- | ------- | -------- | ----------------------------------- |
+| `parentId`    | String  | Yes      | Parent folder ID                    |
+| `overwrite`   | Boolean | No       | Overwrite existing (default: false) |
+| `passthrough` | Boolean | No       | Passthrough flag                    |
 
 **Request Body:**
 
@@ -548,9 +548,9 @@ POST /sf/v3/Items({parentId})/Folder
 POST /sf/v3/Items({parentId})/Note
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `parentId` | String | Yes | Parent folder ID |
+| Parameter  | Type   | Required | Description      |
+| ---------- | ------ | -------- | ---------------- |
+| `parentId` | String | Yes      | Parent folder ID |
 
 **Request Body:**
 
@@ -571,9 +571,9 @@ POST /sf/v3/Items({parentId})/Note
 POST /sf/v3/Items({parentId})/Link
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `parentId` | String | Yes | Parent folder ID |
+| Parameter  | Type   | Required | Description      |
+| ---------- | ------ | -------- | ---------------- |
+| `parentId` | String | Yes      | Parent folder ID |
 
 **Request Body:**
 
@@ -595,10 +595,10 @@ POST /sf/v3/Items({parentId})/Link
 POST /sf/v3/Items({accountId})/SymbolicLink
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `accountId` | String | Yes | Account ID |
-| `overwrite` | Boolean | No | Overwrite existing (default: false) |
+| Parameter   | Type    | Required | Description                         |
+| ----------- | ------- | -------- | ----------------------------------- |
+| `accountId` | String  | Yes      | Account ID                          |
+| `overwrite` | Boolean | No       | Overwrite existing (default: false) |
 
 **Request Body:**
 
@@ -622,10 +622,10 @@ POST /sf/v3/Items({accountId})/SymbolicLink
 POST /sf/v3/ConnectorGroups({id})/Children
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Connector group ID |
-| `overwrite` | Boolean | No | Overwrite existing |
+| Parameter   | Type    | Required | Description        |
+| ----------- | ------- | -------- | ------------------ |
+| `id`        | String  | Yes      | Connector group ID |
+| `overwrite` | Boolean | No       | Overwrite existing |
 
 **Request Body:** Same as SymbolicLink creation above.
 
@@ -639,10 +639,10 @@ POST /sf/v3/ConnectorGroups({id})/Children
 POST /sf/v3/Items({parentId})/BulkDownload
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `parentId` | String | Yes | Parent item ID |
-| `redirect` | Boolean | No | Redirect to download (default: true) |
+| Parameter  | Type    | Required | Description                          |
+| ---------- | ------- | -------- | ------------------------------------ |
+| `parentId` | String  | Yes      | Parent item ID                       |
+| `redirect` | Boolean | No       | Redirect to download (default: true) |
 
 **Request Body:** Array of item IDs
 
@@ -660,11 +660,11 @@ POST /sf/v3/Items({parentId})/BulkDownload
 POST /sf/v3/Items({id})/Copy
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Source item ID |
-| `targetid` | String | Yes | Target folder ID |
-| `overwrite` | Boolean | No | Overwrite existing (default: false) |
+| Parameter   | Type    | Required | Description                         |
+| ----------- | ------- | -------- | ----------------------------------- |
+| `id`        | String  | Yes      | Source item ID                      |
+| `targetid`  | String  | Yes      | Target folder ID                    |
+| `overwrite` | Boolean | No       | Overwrite existing (default: false) |
 
 **Response:** `Item` if same-zone copy; `AsyncOperation` if the target folder is in a different zone.
 
@@ -678,9 +678,9 @@ POST /sf/v3/Items({id})/Copy
 POST /sf/v3/Items({id})/CheckOut
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | File ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | File ID     |
 
 **Response:** Locked `Item`
 
@@ -692,10 +692,10 @@ POST /sf/v3/Items({id})/CheckOut
 POST /sf/v3/Items({id})/CheckIn
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | File ID |
-| `message` | String | No | Check-in message |
+| Parameter | Type   | Required | Description      |
+| --------- | ------ | -------- | ---------------- |
+| `id`      | String | Yes      | File ID          |
+| `message` | String | No       | Check-in message |
 
 **Response:** Unlocked `Item`
 
@@ -707,9 +707,9 @@ POST /sf/v3/Items({id})/CheckIn
 POST /sf/v3/Items({id})/DiscardCheckOut
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | File ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | File ID     |
 
 **Response:** `Item`
 
@@ -791,11 +791,11 @@ POST /sf/v3/Items/AdvancedSearch
 POST /sf/v3/Items({parentId})/BulkDelete
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `parentId` | String | Yes | Parent item ID |
-| `forceSync` | Boolean | No | Block async (default: false) |
-| `deletePermanently` | Boolean | No | Permanently delete (default: false) |
+| Parameter           | Type    | Required | Description                         |
+| ------------------- | ------- | -------- | ----------------------------------- |
+| `parentId`          | String  | Yes      | Parent item ID                      |
+| `forceSync`         | Boolean | No       | Block async (default: false)        |
+| `deletePermanently` | Boolean | No       | Permanently delete (default: false) |
 
 **Request Body:** Array of item IDs
 
@@ -843,9 +843,9 @@ POST /sf/v3/Items/BulkDeletePermanently
 POST /sf/v3/Items({id})/WebAppLink
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | Item ID     |
 
 **Response:** `Redirection` with one-time login URI
 
@@ -857,9 +857,9 @@ POST /sf/v3/Items({id})/WebAppLink
 POST /sf/v3/Items({id})/RemoveTemplateAssociation
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Folder ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | Folder ID   |
 
 ---
 
@@ -869,10 +869,10 @@ POST /sf/v3/Items({id})/RemoveTemplateAssociation
 POST /sf/v3/Items({id})/CheckVersioningViolation
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Folder ID |
-| `newMaxVersions` | Int32 | Yes | New max version count |
+| Parameter        | Type   | Required | Description           |
+| ---------------- | ------ | -------- | --------------------- |
+| `id`             | String | Yes      | Folder ID             |
+| `newMaxVersions` | Int32  | Yes      | New max version count |
 
 ---
 
@@ -882,16 +882,14 @@ POST /sf/v3/Items({id})/CheckVersioningViolation
 POST /sf/v3/Items({parentId})/CheckIfPreviewable
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `parentId` | String | Yes | Parent item ID |
+| Parameter  | Type   | Required | Description    |
+| ---------- | ------ | -------- | -------------- |
+| `parentId` | String | Yes      | Parent item ID |
 
 **Request Body:**
 
 ```json
-[
-  { "FileName": "document.pdf", "FileSizeBytes": 1024000 }
-]
+[{ "FileName": "document.pdf", "FileSizeBytes": 1024000 }]
 ```
 
 ---
@@ -902,9 +900,9 @@ POST /sf/v3/Items({parentId})/CheckIfPreviewable
 POST /sf/v3/Items({folderId})/Upload2
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `folderId` | String | Yes | Target folder ID |
+| Parameter  | Type   | Required | Description      |
+| ---------- | ------ | -------- | ---------------- |
+| `folderId` | String | Yes      | Target folder ID |
 
 **Request Body:**
 
@@ -923,30 +921,30 @@ POST /sf/v3/Items({folderId})/Upload2
 POST /sf/v3/Items({folderId})/Upload
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `method` | UploadMethod | No | `standard`, `streamed`, or `threaded` |
-| `raw` | Boolean | No | Raw POST body (default: false) |
-| `fileName` | String | No | File name |
-| `fileSize` | Int64 | No | File size in bytes |
-| `batchId` | String | No | Batch identifier |
-| `batchLast` | Boolean | No | Last item in batch |
-| `canResume` | Boolean | No | Resume support |
-| `startOver` | Boolean | No | Restart upload |
-| `tool` | String | No | Uploader tool ID (default: `apiv3`) |
-| `overwrite` | Boolean | No | Overwrite existing |
-| `title` | String | No | Item title |
-| `details` | String | No | Item description |
-| `isSend` | Boolean | No | Part of Send operation |
-| `sendGuid` | String | No | Send operation ID |
-| `opid` | String | No | Async operation ID |
-| `threadCount` | Int32 | No | Thread count for threaded upload |
-| `responseFormat` | String | No | Response format (default: json) |
-| `notify` | Boolean | No | Notify users |
-| `clientCreatedDateUTC` | DateTime | No | Client filesystem created date |
-| `clientModifiedDateUTC` | DateTime | No | Client filesystem modified date |
-| `expirationDays` | Int32 | No | Days until expiration |
-| `baseFileId` | String | No | Base file ID for conflict checking |
+| Parameter               | Type         | Required | Description                           |
+| ----------------------- | ------------ | -------- | ------------------------------------- |
+| `method`                | UploadMethod | No       | `standard`, `streamed`, or `threaded` |
+| `raw`                   | Boolean      | No       | Raw POST body (default: false)        |
+| `fileName`              | String       | No       | File name                             |
+| `fileSize`              | Int64        | No       | File size in bytes                    |
+| `batchId`               | String       | No       | Batch identifier                      |
+| `batchLast`             | Boolean      | No       | Last item in batch                    |
+| `canResume`             | Boolean      | No       | Resume support                        |
+| `startOver`             | Boolean      | No       | Restart upload                        |
+| `tool`                  | String       | No       | Uploader tool ID (default: `apiv3`)   |
+| `overwrite`             | Boolean      | No       | Overwrite existing                    |
+| `title`                 | String       | No       | Item title                            |
+| `details`               | String       | No       | Item description                      |
+| `isSend`                | Boolean      | No       | Part of Send operation                |
+| `sendGuid`              | String       | No       | Send operation ID                     |
+| `opid`                  | String       | No       | Async operation ID                    |
+| `threadCount`           | Int32        | No       | Thread count for threaded upload      |
+| `responseFormat`        | String       | No       | Response format (default: json)       |
+| `notify`                | Boolean      | No       | Notify users                          |
+| `clientCreatedDateUTC`  | DateTime     | No       | Client filesystem created date        |
+| `clientModifiedDateUTC` | DateTime     | No       | Client filesystem modified date       |
+| `expirationDays`        | Int32        | No       | Days until expiration                 |
+| `baseFileId`            | String       | No       | Base file ID for conflict checking    |
 
 **Response:** `UploadSpecification` containing `ChunkUri`, `IsResume`, `ResumeIndex`, etc.
 
@@ -960,14 +958,14 @@ POST /sf/v3/Items({folderId})/Upload
 PATCH /sf/v3/Items({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
-| `overwrite` | Boolean | No | Overwrite existing (default: false) |
-| `batchid` | String | No | Batch ID |
-| `batchSizeInBytes` | Int64 | No | Batch size |
-| `forceSync` | Boolean | No | Execute synchronously |
-| `notify` | Boolean | No | Send upload notifications |
+| Parameter          | Type    | Required | Description                         |
+| ------------------ | ------- | -------- | ----------------------------------- |
+| `id`               | String  | Yes      | Item ID                             |
+| `overwrite`        | Boolean | No       | Overwrite existing (default: false) |
+| `batchid`          | String  | No       | Batch ID                            |
+| `batchSizeInBytes` | Int64   | No       | Batch size                          |
+| `forceSync`        | Boolean | No       | Execute synchronously               |
+| `notify`           | Boolean | No       | Send upload notifications           |
 
 **Request Body:**
 
@@ -994,10 +992,10 @@ PATCH /sf/v3/Items({id})
 PATCH /sf/v3/Items/Link({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Link ID |
-| `notify` | Boolean | No | Notify folder listeners (default: false) |
+| Parameter | Type    | Required | Description                              |
+| --------- | ------- | -------- | ---------------------------------------- |
+| `id`      | String  | Yes      | Link ID                                  |
+| `notify`  | Boolean | No       | Notify folder listeners (default: false) |
 
 **Request Body:**
 
@@ -1020,10 +1018,10 @@ PATCH /sf/v3/Items/Link({id})
 PATCH /sf/v3/Items/Note({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Note ID |
-| `notify` | Boolean | No | Notify folder listeners (default: false) |
+| Parameter | Type    | Required | Description                              |
+| --------- | ------- | -------- | ---------------------------------------- |
+| `id`      | String  | Yes      | Note ID                                  |
+| `notify`  | Boolean | No       | Notify folder listeners (default: false) |
 
 **Request Body:**
 
@@ -1045,9 +1043,9 @@ PATCH /sf/v3/Items/Note({id})
 PATCH /sf/v3/Items/SymbolicLink({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | SymbolicLink ID |
+| Parameter | Type   | Required | Description     |
+| --------- | ------ | -------- | --------------- |
+| `id`      | String | Yes      | SymbolicLink ID |
 
 **Request Body:**
 
@@ -1069,11 +1067,11 @@ PATCH /sf/v3/Items/SymbolicLink({id})
 DELETE /sf/v3/Items({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
-| `singleversion` | Boolean | No | Delete only specified version (default: false) |
-| `forceSync` | Boolean | No | Block async (default: false) |
+| Parameter       | Type    | Required | Description                                    |
+| --------------- | ------- | -------- | ---------------------------------------------- |
+| `id`            | String  | Yes      | Item ID                                        |
+| `singleversion` | Boolean | No       | Delete only specified version (default: false) |
+| `forceSync`     | Boolean | No       | Block async (default: false)                   |
 
 ---
 
@@ -1095,9 +1093,9 @@ GET /sf/v3/Users
 GET /sf/v3/Users({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | User ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | User ID     |
 
 **Response:** `User`
 
@@ -1109,9 +1107,9 @@ GET /sf/v3/Users({id})
 GET /sf/v3/Users?emailaddress={email}
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `emailaddress` | String | Yes | User email address |
+| Parameter      | Type   | Required | Description        |
+| -------------- | ------ | -------- | ------------------ |
+| `emailaddress` | String | Yes      | User email address |
 
 **Response:** `User`
 
@@ -1123,13 +1121,13 @@ GET /sf/v3/Users?emailaddress={email}
 POST /sf/v3/Users
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `pushCreatorDefaultSettings` | Boolean | No | Push creator defaults |
-| `addshared` | Boolean | No | Add shared folder access |
-| `notify` | Boolean | No | Send notification email |
-| `ifNecessary` | Boolean | No | Only create if necessary |
-| `addPersonal` | Boolean | No | Add personal folder |
+| Parameter                    | Type    | Required | Description              |
+| ---------------------------- | ------- | -------- | ------------------------ |
+| `pushCreatorDefaultSettings` | Boolean | No       | Push creator defaults    |
+| `addshared`                  | Boolean | No       | Add shared folder access |
+| `notify`                     | Boolean | No       | Send notification email  |
+| `ifNecessary`                | Boolean | No       | Only create if necessary |
+| `addPersonal`                | Boolean | No       | Add personal folder      |
 
 **Request Body:**
 
@@ -1155,9 +1153,9 @@ POST /sf/v3/UsersForFolder
 
 Same parameters as Create Client User, plus:
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `folderId` | String | Yes | Specific folder ID |
+| Parameter  | Type   | Required | Description        |
+| ---------- | ------ | -------- | ------------------ |
+| `folderId` | String | Yes      | Specific folder ID |
 
 ---
 
@@ -1197,9 +1195,9 @@ Same query parameters as Create Client User.
 PATCH /sf/v3/Users({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | User ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | User ID     |
 
 **Request Body:**
 
@@ -1224,9 +1222,9 @@ PATCH /sf/v3/Users({id})
 PATCH /sf/v3/Users/AccountUser({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | User ID |
+| Parameter | Type   | Required | Description |
+| --------- | ------ | -------- | ----------- |
+| `id`      | String | Yes      | User ID     |
 
 **Request Body:**
 
@@ -1381,9 +1379,9 @@ GET /sf/v3/Users/Security
 POST /sf/v3/Users/ResetPassword
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `notify` | Boolean | No | Send notification (default: false) |
+| Parameter | Type    | Required | Description                        |
+| --------- | ------- | -------- | ---------------------------------- |
+| `notify`  | Boolean | No       | Send notification (default: false) |
 
 **Request Body:**
 
@@ -1402,11 +1400,11 @@ POST /sf/v3/Users/ResetPassword
 POST /sf/v3/Users/ForgotPassword
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `email` | String | Yes | User email |
-| `resetOnMobile` | Boolean | No | Mobile reset |
-| `initiatedByAdmin` | Boolean | No | Admin-initiated reset |
+| Parameter          | Type    | Required | Description           |
+| ------------------ | ------- | -------- | --------------------- |
+| `email`            | String  | Yes      | User email            |
+| `resetOnMobile`    | Boolean | No       | Mobile reset          |
+| `initiatedByAdmin` | Boolean | No       | Admin-initiated reset |
 
 ---
 
@@ -1433,12 +1431,12 @@ POST /sf/v3/Users({id})/WelcomeNotification
 DELETE /sf/v3/Users({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | User ID |
-| `completely` | Boolean | No | Complete removal |
-| `itemsReassignTo` | String | No | Reassign items to this user ID |
-| `groupsReassignTo` | String | No | Reassign groups to this user ID |
+| Parameter          | Type    | Required | Description                     |
+| ------------------ | ------- | -------- | ------------------------------- |
+| `id`               | String  | Yes      | User ID                         |
+| `completely`       | Boolean | No       | Complete removal                |
+| `itemsReassignTo`  | String  | No       | Reassign items to this user ID  |
+| `groupsReassignTo` | String  | No       | Reassign groups to this user ID |
 
 ---
 
@@ -1701,9 +1699,9 @@ Shares provide temporary access to files or folders for downloading or uploading
 GET /sf/v3/Shares
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `includeExpired` | Boolean | No | Include expired shares (default: true) |
+| Parameter        | Type    | Required | Description                            |
+| ---------------- | ------- | -------- | -------------------------------------- |
+| `includeExpired` | Boolean | No       | Include expired shares (default: true) |
 
 **Response:** Feed of `Share`
 
@@ -1715,10 +1713,10 @@ GET /sf/v3/Shares
 GET /sf/v3/Shares({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Share ID |
-| `includeExpired` | Boolean | No | Include expired (default: false) |
+| Parameter        | Type    | Required | Description                      |
+| ---------------- | ------- | -------- | -------------------------------- |
+| `id`             | String  | Yes      | Share ID                         |
+| `includeExpired` | Boolean | No       | Include expired (default: false) |
 
 **Response:** `Share`
 
@@ -1730,10 +1728,10 @@ GET /sf/v3/Shares({id})
 GET /sf/v3/Shares({id})/Recipients
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Share ID |
-| `includeExpired` | Boolean | No | Include expired (default: false) |
+| Parameter        | Type    | Required | Description                      |
+| ---------------- | ------- | -------- | -------------------------------- |
+| `id`             | String  | Yes      | Share ID                         |
+| `includeExpired` | Boolean | No       | Include expired (default: false) |
 
 **Response:** Feed of `ShareAlias`
 
@@ -1796,10 +1794,10 @@ GET /sf/v3/Shares({shareId})/Items({itemId})
 GET /sf/v3/Shares({shareId})/Items({itemId})/Thumbnail
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `size` | Int32 | No | 75 (default) or 600 |
-| `redirect` | Boolean | No | 302 redirect or Redirection object |
+| Parameter  | Type    | Required | Description                        |
+| ---------- | ------- | -------- | ---------------------------------- |
+| `size`     | Int32   | No       | 75 (default) or 600                |
+| `redirect` | Boolean | No       | 302 redirect or Redirection object |
 
 ---
 
@@ -1809,9 +1807,9 @@ GET /sf/v3/Shares({shareId})/Items({itemId})/Thumbnail
 GET /sf/v3/Shares({shareId})/Items({itemId})/ProtocolLinks({platform})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `platform` | String | Yes | `all`, `default`, `web`, `webandmobile`, `mobile` |
+| Parameter  | Type   | Required | Description                                       |
+| ---------- | ------ | -------- | ------------------------------------------------- |
+| `platform` | String | Yes      | `all`, `default`, `web`, `webandmobile`, `mobile` |
 
 ---
 
@@ -1821,14 +1819,14 @@ GET /sf/v3/Shares({shareId})/Items({itemId})/ProtocolLinks({platform})
 GET /sf/v3/Shares({shareId})/Download
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `shareId` | String | Yes | Share ID |
-| `Name` | String | No | Recipient name |
-| `Email` | String | No | Recipient email |
-| `Company` | String | No | Recipient company |
-| `id` | String | No | Specific item ID to download |
-| `redirect` | Boolean | No | Redirect (default: true) |
+| Parameter  | Type    | Required | Description                  |
+| ---------- | ------- | -------- | ---------------------------- |
+| `shareId`  | String  | Yes      | Share ID                     |
+| `Name`     | String  | No       | Recipient name               |
+| `Email`    | String  | No       | Recipient email              |
+| `Company`  | String  | No       | Recipient company            |
+| `id`       | String  | No       | Specific item ID to download |
+| `redirect` | Boolean | No       | Redirect (default: true)     |
 
 **Response:** 302 redirect or `DownloadSpecification`
 
@@ -1840,10 +1838,10 @@ GET /sf/v3/Shares({shareId})/Download
 GET /sf/v3/Shares({shareId})/Recipients({aliasId})/DownloadWithAlias
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | No | Specific item ID |
-| `redirect` | Boolean | No | Redirect (default: true) |
+| Parameter  | Type    | Required | Description              |
+| ---------- | ------- | -------- | ------------------------ |
+| `id`       | String  | No       | Specific item ID         |
+| `redirect` | Boolean | No       | Redirect (default: true) |
 
 ---
 
@@ -1853,10 +1851,10 @@ GET /sf/v3/Shares({shareId})/Recipients({aliasId})/DownloadWithAlias
 POST /sf/v3/Shares({shareId})/Recipients({aliasId})/BulkDownload
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `redirect` | Boolean | No | Redirect (default: true) |
-| `includeExpired` | Boolean | No | Include expired (default: false) |
+| Parameter        | Type    | Required | Description                      |
+| ---------------- | ------- | -------- | -------------------------------- |
+| `redirect`       | Boolean | No       | Redirect (default: true)         |
+| `includeExpired` | Boolean | No       | Include expired (default: false) |
 
 **Request Body:** Array of item IDs
 
@@ -1868,10 +1866,10 @@ POST /sf/v3/Shares({shareId})/Recipients({aliasId})/BulkDownload
 POST /sf/v3/Shares
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `notify` | Boolean | No | Send notification (default: false) |
-| `direct` | Boolean | No | Direct share (default: false) |
+| Parameter | Type    | Required | Description                        |
+| --------- | ------- | -------- | ---------------------------------- |
+| `notify`  | Boolean | No       | Send notification (default: false) |
+| `direct`  | Boolean | No       | Direct share (default: false)      |
 
 **Request Body:**
 
@@ -1879,13 +1877,8 @@ POST /sf/v3/Shares
 {
   "ShareType": "Send",
   "Title": "Shared Documents",
-  "Items": [
-    { "Id": "item-id-1" },
-    { "Id": "item-id-2" }
-  ],
-  "Recipients": [
-    { "User": { "Email": "user@example.com" } }
-  ],
+  "Items": [{ "Id": "item-id-1" }, { "Id": "item-id-2" }],
+  "Recipients": [{ "User": { "Email": "user@example.com" } }],
   "ExpirationDate": "2026-06-30",
   "RequireLogin": false,
   "RequireUserInfo": false,
@@ -1915,11 +1908,11 @@ For **Request** shares (file requests), also include:
 PATCH /sf/v3/Shares({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Share ID |
-| `appendItemsFeed` | Boolean | No | Append items (default: true) |
-| `includeExpired` | Boolean | No | Include expired (default: false) |
+| Parameter         | Type    | Required | Description                      |
+| ----------------- | ------- | -------- | -------------------------------- |
+| `id`              | String  | Yes      | Share ID                         |
+| `appendItemsFeed` | Boolean | No       | Append items (default: true)     |
+| `includeExpired`  | Boolean | No       | Include expired (default: false) |
 
 **Request Body:** Partial `Share` object.
 
@@ -1941,10 +1934,10 @@ DELETE /sf/v3/Shares({id})
 POST /sf/v3/Shares({id})/Alias
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `email` | String | Yes | Recipient email |
-| `notify` | Boolean | No | Send notification |
+| Parameter | Type    | Required | Description       |
+| --------- | ------- | -------- | ----------------- |
+| `email`   | String  | Yes      | Recipient email   |
+| `notify`  | Boolean | No       | Send notification |
 
 **Response:** `Share` with `AliasID` property
 
@@ -2077,11 +2070,11 @@ GET /sf/v3/Shares/Inbox
 GET /sf/v3/Shares/Inbox({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `userId` | String | No | User ID |
-| `type` | ShareType | No | Filter by type |
-| `archived` | Boolean | No | Include archived |
+| Parameter  | Type      | Required | Description      |
+| ---------- | --------- | -------- | ---------------- |
+| `userId`   | String    | No       | User ID          |
+| `type`     | ShareType | No       | Filter by type   |
+| `archived` | Boolean   | No       | Include archived |
 
 **Response:** Feed of `Share`
 
@@ -2093,10 +2086,10 @@ GET /sf/v3/Shares/Inbox({id})
 GET /sf/v3/Shares({shareId})/Recipients({aliasId})/Message
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `asJson` | Boolean | No | Return as JSON (default: false) |
-| `includeExpired` | Boolean | No | Include expired (default: false) |
+| Parameter        | Type    | Required | Description                      |
+| ---------------- | ------- | -------- | -------------------------------- |
+| `asJson`         | Boolean | No       | Return as JSON (default: false)  |
+| `includeExpired` | Boolean | No       | Include expired (default: false) |
 
 **Response:** Message string or JSON object
 
@@ -2143,9 +2136,9 @@ PATCH /sf/v3/Accounts/Branding
 GET /sf/v3/Accounts/Employees
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `withRightSignature` | Boolean | No | Filter by RightSignature |
+| Parameter            | Type    | Required | Description              |
+| -------------------- | ------- | -------- | ------------------------ |
+| `withRightSignature` | Boolean | No       | Filter by RightSignature |
 
 **Response:** Feed of `Contact`
 
@@ -2167,10 +2160,10 @@ GET /sf/v3/Accounts/Clients
 GET /sf/v3/Accounts/AddressBook
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `type` | String | Yes | `personal`, `shared`, or `group` |
-| `searchTerm` | String | No | Search filter |
+| Parameter    | Type   | Required | Description                      |
+| ------------ | ------ | -------- | -------------------------------- |
+| `type`       | String | Yes      | `personal`, `shared`, or `group` |
+| `searchTerm` | String | No       | Search filter                    |
 
 **Response:** Feed of `Contact`
 
@@ -2237,10 +2230,10 @@ Requires `AdminAccountPolicies` role.
 GET /sf/v3/Accounts/SSO
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `provider` | String | No | Reserved |
-| `idpEntityId` | String | No | IDP Entity ID |
+| Parameter     | Type   | Required | Description   |
+| ------------- | ------ | -------- | ------------- |
+| `provider`    | String | No       | Reserved      |
+| `idpEntityId` | String | No       | IDP Entity ID |
 
 **Response:** `SSOAccountProvider`
 
@@ -2372,11 +2365,11 @@ DELETE /sf/v3/Accounts/FolderAccessControlDomains
 GET /sf/v3/Accounts/RequireWebPop
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `subdomain` | String | Yes | Account subdomain |
-| `username` | String | Yes | Email or user ID |
-| `singlePlane` | Boolean | No | Single plane mode (default: false) |
+| Parameter     | Type    | Required | Description                        |
+| ------------- | ------- | -------- | ---------------------------------- |
+| `subdomain`   | String  | Yes      | Account subdomain                  |
+| `username`    | String  | Yes      | Email or user ID                   |
+| `singlePlane` | Boolean | No       | Single plane mode (default: false) |
 
 **Response:** `RequireWebPopResult`
 
@@ -2388,10 +2381,10 @@ GET /sf/v3/Accounts/RequireWebPop
 GET /sf/v3/Accounts/RequireSubdomain
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `username` | String | Yes | User email |
-| `singlePlane` | Boolean | No | Single plane mode |
+| Parameter     | Type    | Required | Description       |
+| ------------- | ------- | -------- | ----------------- |
+| `username`    | String  | Yes      | User email        |
+| `singlePlane` | Boolean | No       | Single plane mode |
 
 **Response:** `RequireSubdomainResult`
 
@@ -2403,9 +2396,9 @@ GET /sf/v3/Accounts/RequireSubdomain
 POST /sf/v3/Accounts/FindSubdomain
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `singlePlane` | Boolean | No | Single plane mode |
+| Parameter     | Type    | Required | Description       |
+| ------------- | ------- | -------- | ----------------- |
+| `singlePlane` | Boolean | No       | Single plane mode |
 
 **Request Body:**
 
@@ -2447,10 +2440,10 @@ GET /sf/v3/Accounts/SSOInfo?subdomain={subdomain}
 GET /sf/v3/Accounts/Tenants
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `multiPlane` | Boolean | No | Multi-plane mode (default: false) |
-| `partnerAccountId` | String | No | Partner account ID |
+| Parameter          | Type    | Required | Description                       |
+| ------------------ | ------- | -------- | --------------------------------- |
+| `multiPlane`       | Boolean | No       | Multi-plane mode (default: false) |
+| `partnerAccountId` | String  | No       | Partner account ID                |
 
 **Response:** Feed of tenant `Account`
 
@@ -2474,9 +2467,9 @@ Supports `$expand=DiskSpace`.
 GET /sf/v3/Accounts/Tenants/ZoneUsage
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `includePartner` | Boolean | No | Include partner usage |
+| Parameter        | Type    | Required | Description           |
+| ---------------- | ------- | -------- | --------------------- |
+| `includePartner` | Boolean | No       | Include partner usage |
 
 ---
 
@@ -2534,10 +2527,7 @@ POST /sf/v3/Groups
 {
   "Name": "Engineering Team",
   "IsShared": true,
-  "Contacts": [
-    { "Email": "user1@example.com" },
-    { "Email": "user2@example.com" }
-  ]
+  "Contacts": [{ "Email": "user1@example.com" }, { "Email": "user2@example.com" }]
 }
 ```
 
@@ -2584,10 +2574,7 @@ POST /sf/v3/Groups({id})/Contacts
 **Request Body:**
 
 ```json
-[
-  { "Email": "newuser@example.com" },
-  { "Id": "existing-user-id" }
-]
+[{ "Email": "newuser@example.com" }, { "Id": "existing-user-id" }]
 ```
 
 **Response:** Updated contacts list
@@ -2603,10 +2590,7 @@ DELETE /sf/v3/Groups({id})/Contacts
 **Request Body:**
 
 ```json
-[
-  { "Email": "remove@example.com" },
-  { "Id": "user-id-to-remove" }
-]
+[{ "Email": "remove@example.com" }, { "Id": "user-id-to-remove" }]
 ```
 
 ---
@@ -2617,11 +2601,11 @@ DELETE /sf/v3/Groups({id})/Contacts
 GET /sf/v3/Groups({id})/ExportDocument
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Group ID |
-| `documentType` | DocumentType | No | Export format |
-| `token` | String | No | Auth token |
+| Parameter      | Type         | Required | Description   |
+| -------------- | ------------ | -------- | ------------- |
+| `id`           | String       | Yes      | Group ID      |
+| `documentType` | DocumentType | No       | Export format |
+| `token`        | String       | No       | Auth token    |
 
 **Response:** Spreadsheet or CSV file
 
@@ -2665,12 +2649,12 @@ GET /sf/v3/Items({id})/AccessControls
 POST /sf/v3/Items({id})/AccessControls
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
-| `recursive` | Boolean | No | Apply recursively (default: false) |
-| `message` | String | No | Notification message |
-| `sendDefaultNotification` | Boolean | No | Send notification (default: false) |
+| Parameter                 | Type    | Required | Description                        |
+| ------------------------- | ------- | -------- | ---------------------------------- |
+| `id`                      | String  | Yes      | Item ID                            |
+| `recursive`               | Boolean | No       | Apply recursively (default: false) |
+| `message`                 | String  | No       | Notification message               |
+| `sendDefaultNotification` | Boolean | No       | Send notification (default: false) |
 
 **Request Body:**
 
@@ -2697,10 +2681,10 @@ POST /sf/v3/Items({id})/AccessControls
 PATCH /sf/v3/Items({id})/AccessControls
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Item ID |
-| `recursive` | Boolean | No | Apply recursively (default: false) |
+| Parameter   | Type    | Required | Description                        |
+| ----------- | ------- | -------- | ---------------------------------- |
+| `id`        | String  | Yes      | Item ID                            |
+| `recursive` | Boolean | No       | Apply recursively (default: false) |
 
 **Request Body:** Same as create.
 
@@ -2846,10 +2830,10 @@ POST /sf/v3/Items({id})/AccessControls/NotifyUsersPreview
 GET /sf/v3/Zones
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `services` | ZoneService | No | Filter by service type |
-| `includeDisabled` | Boolean | No | Include disabled zones |
+| Parameter         | Type        | Required | Description            |
+| ----------------- | ----------- | -------- | ---------------------- |
+| `services`        | ZoneService | No       | Filter by service type |
+| `includeDisabled` | Boolean     | No       | Include disabled zones |
 
 **Response:** Feed of `Zone`
 
@@ -2861,10 +2845,10 @@ GET /sf/v3/Zones
 GET /sf/v3/Zones({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | String | Yes | Zone ID |
-| `secret` | Boolean | No | Include secret |
+| Parameter | Type    | Required | Description    |
+| --------- | ------- | -------- | -------------- |
+| `id`      | String  | Yes      | Zone ID        |
+| `secret`  | Boolean | No       | Include secret |
 
 **Response:** `Zone`
 
@@ -2916,10 +2900,10 @@ PATCH /sf/v3/Zones({id})
 DELETE /sf/v3/Zones({id})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `force` | Boolean | No | Force deletion |
-| `newDefaultZoneId` | String | No | New default zone |
+| Parameter          | Type    | Required | Description      |
+| ------------------ | ------- | -------- | ---------------- |
+| `force`            | Boolean | No       | Force deletion   |
+| `newDefaultZoneId` | String  | No       | New default zone |
 
 ---
 
@@ -2957,10 +2941,10 @@ POST /sf/v3/Zones({id})/Tenants?accountId={accountId}
 DELETE /sf/v3/Zones({id})/Tenants({tenantId})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `newDefaultZoneId` | String | No | New default zone for tenant |
-| `expireItems` | Boolean | No | Expire tenant items |
+| Parameter          | Type    | Required | Description                 |
+| ------------------ | ------- | -------- | --------------------------- |
+| `newDefaultZoneId` | String  | No       | New default zone for tenant |
+| `expireItems`      | Boolean | No       | Expire tenant items         |
 
 ---
 
@@ -3048,9 +3032,9 @@ DELETE /sf/v3/User({userId})/Devices({deviceId})
 POST /sf/v3/Devices({deviceId})/Wipe
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `userid` | String | No | User ID or email |
+| Parameter | Type   | Required | Description      |
+| --------- | ------ | -------- | ---------------- |
+| `userid`  | String | No       | User ID or email |
 
 ---
 
@@ -3060,9 +3044,9 @@ POST /sf/v3/Devices({deviceId})/Wipe
 POST /sf/v3/Devices({deviceId})/Lock
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `userid` | String | No | User ID or email |
+| Parameter | Type   | Required | Description      |
+| --------- | ------ | -------- | ---------------- |
+| `userid`  | String | No       | User ID or email |
 
 ---
 
@@ -3072,9 +3056,9 @@ POST /sf/v3/Devices({deviceId})/Lock
 POST /sf/v3/Devices({deviceId})/Unlock
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `userid` | String | No | User ID or email |
+| Parameter | Type   | Required | Description      |
+| --------- | ------ | -------- | ---------------- |
+| `userid`  | String | No       | User ID or email |
 
 ---
 
@@ -3178,9 +3162,9 @@ GET /sf/v3/AsyncOperations/GetBatch({batchId})
 GET /sf/v3/AsyncOperations/GetByFolder({folderId})
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `activeOnly` | Boolean | No | Filter out completed operations |
+| Parameter    | Type    | Required | Description                     |
+| ------------ | ------- | -------- | ------------------------------- |
+| `activeOnly` | Boolean | No       | Filter out completed operations |
 
 **Response:** Feed of `AsyncOperation`
 
@@ -3236,195 +3220,195 @@ DELETE /sf/v3/AsyncOperations({id})
 
 ### 13.1 Item
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Id` | String | Unique identifier |
-| `Name` | String | Item display name |
-| `FileName` | String | Download file name |
-| `Creator` | User | Creating user |
-| `Parent` | Item | Parent container |
-| `AccessControls` | List\<AccessControl\> | ACLs on this item |
-| `Zone` | Zone | Storage zone |
-| `CreationDate` | DateTime | Created timestamp |
-| `ProgenyEditDate` | DateTime | Last modified (recursive) |
-| `LastModifiedByUserID` | String | Last modifier user ID |
-| `ClientCreatedDate` | DateTime | Client filesystem created date |
-| `ClientModifiedDate` | DateTime | Client filesystem modified date |
-| `ExpirationDate` | DateTime | Auto-deletion date |
-| `Description` | String | Item description |
-| `DiskSpaceLimit` | Int32 | Max bytes for container |
-| `IsHidden` | Boolean | Hidden flag |
-| `BandwidthLimitInMB` | Int32 | Bandwidth cap |
-| `Owner` | User | Item owner |
-| `Account` | Account | Containing account |
-| `FileSizeInKB` | Int32 | Size in kilobytes |
-| `FileSizeBytes` | Int64 | Size in bytes |
-| `Path` | String | Virtual root path |
-| `CreatorFirstName` | String | Creator first name |
-| `CreatorLastName` | String | Creator last name |
-| `ExpirationDays` | Int32 | Days until expiration |
-| `PreviewStatus` | PreviewStatus | Preview availability |
-| `HasPendingDeletion` | Boolean | Pending removal |
-| `AssociatedFolderTemplateID` | String | Template reference |
-| `IsTemplateOwned` | Boolean | Created from template |
-| `StreamID` | String | Version stream ID |
-| `HasMultipleVersions` | Boolean | Has other versions |
-| `HasPendingAsyncOp` | Boolean | Pending operation |
-| `Metadata` | List\<Metadata\> | Custom metadata |
-| `Favorite` | Favorite | Favorite object |
-| `SemanticPath` | String | Path using folder names |
+| Property                     | Type                  | Description                     |
+| ---------------------------- | --------------------- | ------------------------------- |
+| `Id`                         | String                | Unique identifier               |
+| `Name`                       | String                | Item display name               |
+| `FileName`                   | String                | Download file name              |
+| `Creator`                    | User                  | Creating user                   |
+| `Parent`                     | Item                  | Parent container                |
+| `AccessControls`             | List\<AccessControl\> | ACLs on this item               |
+| `Zone`                       | Zone                  | Storage zone                    |
+| `CreationDate`               | DateTime              | Created timestamp               |
+| `ProgenyEditDate`            | DateTime              | Last modified (recursive)       |
+| `LastModifiedByUserID`       | String                | Last modifier user ID           |
+| `ClientCreatedDate`          | DateTime              | Client filesystem created date  |
+| `ClientModifiedDate`         | DateTime              | Client filesystem modified date |
+| `ExpirationDate`             | DateTime              | Auto-deletion date              |
+| `Description`                | String                | Item description                |
+| `DiskSpaceLimit`             | Int32                 | Max bytes for container         |
+| `IsHidden`                   | Boolean               | Hidden flag                     |
+| `BandwidthLimitInMB`         | Int32                 | Bandwidth cap                   |
+| `Owner`                      | User                  | Item owner                      |
+| `Account`                    | Account               | Containing account              |
+| `FileSizeInKB`               | Int32                 | Size in kilobytes               |
+| `FileSizeBytes`              | Int64                 | Size in bytes                   |
+| `Path`                       | String                | Virtual root path               |
+| `CreatorFirstName`           | String                | Creator first name              |
+| `CreatorLastName`            | String                | Creator last name               |
+| `ExpirationDays`             | Int32                 | Days until expiration           |
+| `PreviewStatus`              | PreviewStatus         | Preview availability            |
+| `HasPendingDeletion`         | Boolean               | Pending removal                 |
+| `AssociatedFolderTemplateID` | String                | Template reference              |
+| `IsTemplateOwned`            | Boolean               | Created from template           |
+| `StreamID`                   | String                | Version stream ID               |
+| `HasMultipleVersions`        | Boolean               | Has other versions              |
+| `HasPendingAsyncOp`          | Boolean               | Pending operation               |
+| `Metadata`                   | List\<Metadata\>      | Custom metadata                 |
+| `Favorite`                   | Favorite              | Favorite object                 |
+| `SemanticPath`               | String                | Path using folder names         |
 
 ### 13.2 Folder (extends Item)
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `FileCount` | Int32 | Child item count (including sub-folders) |
-| `Children` | List\<Item\> | Child items |
-| `HasRemoteChildren` | Boolean | Children on remote endpoint |
-| `Info` | ItemInfo | Effective access control permissions |
-| `Redirection` | Redirection | Redirection endpoint |
+| Property            | Type         | Description                              |
+| ------------------- | ------------ | ---------------------------------------- |
+| `FileCount`         | Int32        | Child item count (including sub-folders) |
+| `Children`          | List\<Item\> | Child items                              |
+| `HasRemoteChildren` | Boolean      | Children on remote endpoint              |
+| `Info`              | ItemInfo     | Effective access control permissions     |
+| `Redirection`       | Redirection  | Redirection endpoint                     |
 
 ### 13.3 User
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Id` | String | Unique identifier |
-| `Email` | String | Primary email |
-| `FirstName` | String | First name |
-| `LastName` | String | Last name |
-| `Company` | String | Company name |
-| `DefaultZone` | Zone | Default storage zone |
-| `Security` | UserSecurity | Security settings |
-| `Preferences` | UserPreferences | User preferences |
-| `Roles` | List\<String\> | Assigned roles |
+| Property      | Type            | Description          |
+| ------------- | --------------- | -------------------- |
+| `Id`          | String          | Unique identifier    |
+| `Email`       | String          | Primary email        |
+| `FirstName`   | String          | First name           |
+| `LastName`    | String          | Last name            |
+| `Company`     | String          | Company name         |
+| `DefaultZone` | Zone            | Default storage zone |
+| `Security`    | UserSecurity    | Security settings    |
+| `Preferences` | UserPreferences | User preferences     |
+| `Roles`       | List\<String\>  | Assigned roles       |
 
 ### 13.4 AccountUser (extends User)
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `StorageQuotaLimitGB` | Int32 | Storage quota in GB |
-| `IsAdministrator` | Boolean | Admin flag |
-| `CanCreateFolders` | Boolean | Folder creation permission |
-| `CanUseFileBox` | Boolean | FileBox access |
-| `CanManageUsers` | Boolean | User management permission |
-| `Bandwidth` | Int32 | Bandwidth limit |
+| Property              | Type    | Description                |
+| --------------------- | ------- | -------------------------- |
+| `StorageQuotaLimitGB` | Int32   | Storage quota in GB        |
+| `IsAdministrator`     | Boolean | Admin flag                 |
+| `CanCreateFolders`    | Boolean | Folder creation permission |
+| `CanUseFileBox`       | Boolean | FileBox access             |
+| `CanManageUsers`      | Boolean | User management permission |
+| `Bandwidth`           | Int32   | Bandwidth limit            |
 
 ### 13.5 Share
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Id` | String | Unique identifier |
-| `ShareType` | ShareType | `Send` or `Request` |
-| `Title` | String | Share title |
-| `Items` | List\<Item\> | Shared items |
-| `Recipients` | List\<ShareAlias\> | Share recipients |
-| `Parent` | Item | Parent folder (Request shares) |
-| `ExpirationDate` | DateTime | Expiration date |
-| `RequireLogin` | Boolean | Login required to access |
-| `RequireUserInfo` | Boolean | User info required |
-| `IsViewOnly` | Boolean | View-only restriction |
-| `TrackUntilDate` | DateTime | Tracking end date (Request) |
-| `SendFrequency` | Int32 | Reminder frequency (Request) |
-| `SendInterval` | Int32 | Reminder interval (Request) |
-| `AliasID` | String | Share alias ID |
+| Property          | Type               | Description                    |
+| ----------------- | ------------------ | ------------------------------ |
+| `Id`              | String             | Unique identifier              |
+| `ShareType`       | ShareType          | `Send` or `Request`            |
+| `Title`           | String             | Share title                    |
+| `Items`           | List\<Item\>       | Shared items                   |
+| `Recipients`      | List\<ShareAlias\> | Share recipients               |
+| `Parent`          | Item               | Parent folder (Request shares) |
+| `ExpirationDate`  | DateTime           | Expiration date                |
+| `RequireLogin`    | Boolean            | Login required to access       |
+| `RequireUserInfo` | Boolean            | User info required             |
+| `IsViewOnly`      | Boolean            | View-only restriction          |
+| `TrackUntilDate`  | DateTime           | Tracking end date (Request)    |
+| `SendFrequency`   | Int32              | Reminder frequency (Request)   |
+| `SendInterval`    | Int32              | Reminder interval (Request)    |
+| `AliasID`         | String             | Share alias ID                 |
 
 ### 13.6 Group
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Id` | String | Unique identifier |
-| `Name` | String | Group name |
-| `IsShared` | Boolean | Shared/distribution group |
-| `Contacts` | List\<Contact\> | Group members |
+| Property   | Type            | Description               |
+| ---------- | --------------- | ------------------------- |
+| `Id`       | String          | Unique identifier         |
+| `Name`     | String          | Group name                |
+| `IsShared` | Boolean         | Shared/distribution group |
+| `Contacts` | List\<Contact\> | Group members             |
 
 ### 13.7 Account
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Id` | String | Unique identifier |
-| `Subdomain` | String | Account subdomain |
+| Property      | Type               | Description         |
+| ------------- | ------------------ | ------------------- |
+| `Id`          | String             | Unique identifier   |
+| `Subdomain`   | String             | Account subdomain   |
 | `Preferences` | AccountPreferences | Account preferences |
-| `Branding` | Branding | Branding settings |
-| `SSO` | SSOAccountProvider | SSO configuration |
+| `Branding`    | Branding           | Branding settings   |
+| `SSO`         | SSOAccountProvider | SSO configuration   |
 
 ### 13.8 AccessControl
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Principal` | User or Group | The user or group |
-| `CanUpload` | Boolean | Upload permission |
-| `CanDownload` | Boolean | Download permission |
-| `CanView` | Boolean | View permission |
-| `CanDelete` | Boolean | Delete permission |
-| `CanManagePermissions` | Boolean | Permission management |
+| Property               | Type          | Description           |
+| ---------------------- | ------------- | --------------------- |
+| `Principal`            | User or Group | The user or group     |
+| `CanUpload`            | Boolean       | Upload permission     |
+| `CanDownload`          | Boolean       | Download permission   |
+| `CanView`              | Boolean       | View permission       |
+| `CanDelete`            | Boolean       | Delete permission     |
+| `CanManagePermissions` | Boolean       | Permission management |
 
 ### 13.9 Zone
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Id` | String | Unique identifier |
-| `Name` | String | Zone name |
-| `HeartbeatTolerance` | Int32 | Heartbeat tolerance in seconds |
-| `ZoneServices` | ZoneService | Zone service type |
-| `Secret` | String | Zone secret (when requested) |
+| Property             | Type        | Description                    |
+| -------------------- | ----------- | ------------------------------ |
+| `Id`                 | String      | Unique identifier              |
+| `Name`               | String      | Zone name                      |
+| `HeartbeatTolerance` | Int32       | Heartbeat tolerance in seconds |
+| `ZoneServices`       | ZoneService | Zone service type              |
+| `Secret`             | String      | Zone secret (when requested)   |
 
 ### 13.10 Device
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Id` | String | Unique identifier |
-| `DeviceName` | String | Device name |
-| `DeviceType` | String | Device type |
-| `User` | User | Associated user |
+| Property     | Type   | Description       |
+| ------------ | ------ | ----------------- |
+| `Id`         | String | Unique identifier |
+| `DeviceName` | String | Device name       |
+| `DeviceType` | String | Device type       |
+| `User`       | User   | Associated user   |
 
 ### 13.11 WebhookSubscription
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Id` | String | Unique identifier |
-| `SubscriptionContext` | SubscriptionContext | Resource type and ID |
-| `WebhookUrl` | String | Callback URL |
-| `Events` | List\<WebhookEvent\> | Subscribed events |
+| Property              | Type                 | Description          |
+| --------------------- | -------------------- | -------------------- |
+| `Id`                  | String               | Unique identifier    |
+| `SubscriptionContext` | SubscriptionContext  | Resource type and ID |
+| `WebhookUrl`          | String               | Callback URL         |
+| `Events`              | List\<WebhookEvent\> | Subscribed events    |
 
 ### 13.12 AsyncOperation
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Id` | String | Unique identifier |
-| `State` | String | Operation state |
-| `BatchId` | String | Batch identifier |
-| `Progress` | Int32 | Completion percentage |
+| Property   | Type   | Description           |
+| ---------- | ------ | --------------------- |
+| `Id`       | String | Unique identifier     |
+| `State`    | String | Operation state       |
+| `BatchId`  | String | Batch identifier      |
+| `Progress` | Int32  | Completion percentage |
 
 ### 13.13 Supporting Types
 
-| Type | Properties |
-|------|-----------|
-| `DownloadSpecification` | `DownloadUrl`, `DownloadToken`, `PrepStatus` |
-| `UploadSpecification` | `Method`, `ChunkUri`, `IsResume`, `ResumeIndex`, `ResumeOffset`, `ResumeFileHash` |
-| `Redirection` | `Uri`, `Available`, `Expiration` |
-| `SearchResults` | `Results` (List\<Item\>), `TotalCount`, `TimedOut` |
-| `AdvancedSearchResults` | `Results`, `TotalCount`, `PartialResults`, `TimedOut` |
-| `ItemInfo` | `HasVroot`, `IsSystemRoot`, `IsAccountRoot`, `IsVRoot`, `IsMyFolders`, `IsAHomeFolder`, `IsMyHomeFolder`, `IsAStartFolder`, `IsSharedFolder`, `IsPassthrough`, `CanAddFolder`, `CanAddNode`, `CanView`, `CanDownload`, `CanUpload`, `CanSend`, `CanDeleteCurrentItem`, `CanDeleteChildItems`, `CanManagePermissions`, `FolderPayID`, `ShowFolderPayBuyButton` |
-| `Contact` | `Id`, `Email`, `FirstName`, `LastName`, `Company` |
-| `Metadata` | `Name`, `Value`, `IsPublic` |
-| `Favorite` | `Id`, `Item`, `CreationDate` |
-| `ShareAlias` | `Id`, `Email`, `FirstName`, `LastName`, `Company`, `DownloadCount` |
-| `AccessControlDomains` | `AccessControlType`, `Domains` (List\<String\>) |
-| `SSOAccountProvider` | `LogoutUrl`, `LoginUrl`, `IPRestrictions`, `ForceSSO`, `EntityID`, `SFEntityID` |
-| `OAuthToken` | `access_token`, `refresh_token`, `token_type`, `apicp`, `appcp`, `subdomain`, `expires_in` |
+| Type                    | Properties                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DownloadSpecification` | `DownloadUrl`, `DownloadToken`, `PrepStatus`                                                                                                                                                                                                                                                                                                                  |
+| `UploadSpecification`   | `Method`, `ChunkUri`, `IsResume`, `ResumeIndex`, `ResumeOffset`, `ResumeFileHash`                                                                                                                                                                                                                                                                             |
+| `Redirection`           | `Uri`, `Available`, `Expiration`                                                                                                                                                                                                                                                                                                                              |
+| `SearchResults`         | `Results` (List\<Item\>), `TotalCount`, `TimedOut`                                                                                                                                                                                                                                                                                                            |
+| `AdvancedSearchResults` | `Results`, `TotalCount`, `PartialResults`, `TimedOut`                                                                                                                                                                                                                                                                                                         |
+| `ItemInfo`              | `HasVroot`, `IsSystemRoot`, `IsAccountRoot`, `IsVRoot`, `IsMyFolders`, `IsAHomeFolder`, `IsMyHomeFolder`, `IsAStartFolder`, `IsSharedFolder`, `IsPassthrough`, `CanAddFolder`, `CanAddNode`, `CanView`, `CanDownload`, `CanUpload`, `CanSend`, `CanDeleteCurrentItem`, `CanDeleteChildItems`, `CanManagePermissions`, `FolderPayID`, `ShowFolderPayBuyButton` |
+| `Contact`               | `Id`, `Email`, `FirstName`, `LastName`, `Company`                                                                                                                                                                                                                                                                                                             |
+| `Metadata`              | `Name`, `Value`, `IsPublic`                                                                                                                                                                                                                                                                                                                                   |
+| `Favorite`              | `Id`, `Item`, `CreationDate`                                                                                                                                                                                                                                                                                                                                  |
+| `ShareAlias`            | `Id`, `Email`, `FirstName`, `LastName`, `Company`, `DownloadCount`                                                                                                                                                                                                                                                                                            |
+| `AccessControlDomains`  | `AccessControlType`, `Domains` (List\<String\>)                                                                                                                                                                                                                                                                                                               |
+| `SSOAccountProvider`    | `LogoutUrl`, `LoginUrl`, `IPRestrictions`, `ForceSSO`, `EntityID`, `SFEntityID`                                                                                                                                                                                                                                                                               |
+| `OAuthToken`            | `access_token`, `refresh_token`, `token_type`, `apicp`, `appcp`, `subdomain`, `expires_in`                                                                                                                                                                                                                                                                    |
 
 ---
 
 ## 14. Enums
 
-| Enum | Values |
-|------|--------|
-| `ShareType` | `Send`, `Request` |
-| `UploadMethod` | `Standard`, `Streamed`, `Threaded` |
-| `TreeMode` | `Copy`, `Move`, `Manage` |
+| Enum               | Values                                                       |
+| ------------------ | ------------------------------------------------------------ |
+| `ShareType`        | `Send`, `Request`                                            |
+| `UploadMethod`     | `Standard`, `Streamed`, `Threaded`                           |
+| `TreeMode`         | `Copy`, `Move`, `Manage`                                     |
 | `ItemOrderingMode` | `FoldersFirst`, `DateDesc`, `DateAsc`, `NameAsc`, `NameDesc` |
-| `DlpStatus` | `Unscanned`, `ScannedOK`, `ScannedRejected` |
-| `PreviewStatus` | `None`, `Available`, `Unavailable` |
-| `ZoneService` | `StorageZone`, `SharePoint`, `NetworkShareConnector` |
-| `DocumentType` | Spreadsheet, CSV |
-| `GrantType` | `authorization_code`, `password`, `refresh_token` |
+| `DlpStatus`        | `Unscanned`, `ScannedOK`, `ScannedRejected`                  |
+| `PreviewStatus`    | `None`, `Available`, `Unavailable`                           |
+| `ZoneService`      | `StorageZone`, `SharePoint`, `NetworkShareConnector`         |
+| `DocumentType`     | Spreadsheet, CSV                                             |
+| `GrantType`        | `authorization_code`, `password`, `refresh_token`            |
