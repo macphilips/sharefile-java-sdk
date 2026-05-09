@@ -6,11 +6,32 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+/**
+ * Factory for pre-configured Jackson {@link ObjectMapper} instances tuned for the
+ * ShareFile REST API.
+ *
+ * <p>The returned mapper is configured with:
+ * <ul>
+ *   <li>{@code FAIL_ON_UNKNOWN_PROPERTIES = false}</li>
+ *   <li>{@code WRITE_DATES_AS_TIMESTAMPS = false} (ISO-8601 strings)</li>
+ *   <li>{@code UPPER_CAMEL_CASE} property naming (PascalCase)</li>
+ *   <li>Java Time module for {@code java.time.*} support</li>
+ *   <li>{@link ShareFileModule} for OData polymorphic deserialization</li>
+ * </ul>
+ */
 public final class ShareFileObjectMapper {
 
     private ShareFileObjectMapper() {
     }
 
+    /**
+     * Creates a new {@link ObjectMapper} configured for the ShareFile API.
+     *
+     * <p>Each call returns a new instance. Callers should cache the result
+     * if they need to reuse it.
+     *
+     * @return a pre-configured ObjectMapper
+     */
     public static ObjectMapper create() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);

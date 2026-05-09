@@ -32,6 +32,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Resolves ShareFile {@code odata.type} strings to Java model classes.
+ *
+ * <p>This class is public because {@code @JsonTypeIdResolver} annotations on model
+ * classes reference it across packages. It is <strong>not</strong> part of the
+ * public SDK API and should not be used directly by SDK consumers.
+ */
 public final class ODataTypeResolver extends TypeIdResolverBase {
 
     private static final Map<String, Class<? extends ODataEntity>> TYPES_BY_ID = new LinkedHashMap<>();
