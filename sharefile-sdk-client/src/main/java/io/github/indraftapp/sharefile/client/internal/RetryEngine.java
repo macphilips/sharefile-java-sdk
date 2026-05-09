@@ -12,8 +12,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Retry engine for ShareFile HTTP requests.
@@ -23,9 +22,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Package-private — not part of the public API.
  */
+@Slf4j
 final class RetryEngine {
-
-  private static final Logger LOG = LoggerFactory.getLogger(RetryEngine.class);
   private static final Set<String> IDEMPOTENT_METHODS = Set.of("GET", "PUT", "HEAD");
   private static final int MAX_CONNECTION_RETRIES = 2;
   private static final List<Duration> RATE_LIMIT_DEFAULTS =
@@ -59,7 +57,7 @@ final class RetryEngine {
         if (!shouldRetryConnectionFailure(method, policy, attempt)) {
           throw e;
         }
-        LOG.warn("Connection failure on attempt {}, retrying: {}", attempt, e.getMessage());
+        log.warn("Connection failure on attempt {}, retrying: {}", attempt, e.getMessage());
         metrics.incrementCounter(MetricNames.RETRY_ATTEMPTS, "reason", "connection_failure");
         sleepFor(Duration.ofSeconds(2));
       } catch (RetryableResponseException e) {
@@ -71,7 +69,7 @@ final class RetryEngine {
           throw e.toApiException();
         }
         Duration backoff = computeBackoff(e, attempt);
-        LOG.warn(
+        log.warn(
             "HTTP {} on attempt {}, retrying after {}ms",
             e.statusCode(),
             attempt,

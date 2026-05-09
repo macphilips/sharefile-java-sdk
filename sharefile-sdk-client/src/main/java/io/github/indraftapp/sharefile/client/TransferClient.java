@@ -43,13 +43,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /** Explicit ShareFile transfer client for upload and download workflows. */
+@Slf4j
 public final class TransferClient {
-
-  private static final Logger LOG = LoggerFactory.getLogger(TransferClient.class);
   private static final long STANDARD_UPLOAD_THRESHOLD_BYTES = 4L * 1024 * 1024;
   private static final long THREADED_UPLOAD_THRESHOLD_BYTES = 256L * 1024 * 1024;
   private static final int DOWNLOAD_BUFFER_SIZE = 64 * 1024;
@@ -273,7 +271,7 @@ public final class TransferClient {
     Objects.requireNonNull(target, "target must not be null");
     tracker.start();
     metrics.incrementCounter(MetricNames.TRANSFER_ACTIVE, "type", "download", "event", "start");
-    LOG.info("Starting download to {}", target);
+    log.info("Starting download to {}", target);
     try (HttpTransport.HttpResponse response =
             storageTransport.execute(
                 newStorageRequest("GET", downloadUri, null, config.getDownloadTimeout()));
@@ -305,7 +303,7 @@ public final class TransferClient {
           tracker.snapshot().getElapsed().toMillis(),
           "result",
           "success");
-      LOG.info("Completed download to {}", target);
+      log.info("Completed download to {}", target);
     } catch (ShareFileTransferCancelledException e) {
       tracker.cancel();
       metrics.incrementCounter(
@@ -313,11 +311,11 @@ public final class TransferClient {
       throw e;
     } catch (IOException e) {
       tracker.fail();
-      LOG.error("Download write failed for {}", target, e);
+      log.error("Download write failed for {}", target, e);
       throw new ShareFileDownloadWriteException("Failed to write downloaded bytes", e);
     } catch (RuntimeException e) {
       tracker.fail();
-      LOG.error("Download failed for {}", target, e);
+      log.error("Download failed for {}", target, e);
       throw e;
     }
   }
@@ -333,7 +331,7 @@ public final class TransferClient {
       AtomicBoolean cancelled) {
     tracker.start();
     metrics.incrementCounter(MetricNames.TRANSFER_ACTIVE, "type", "upload", "event", "start");
-    LOG.info("Starting upload for {}", fileName);
+    log.info("Starting upload for {}", fileName);
     try {
       UploadMethod method = resolveUploadMethod(options.getMethod(), fileSize, file != null);
       UploadSpecification specification =
@@ -368,7 +366,7 @@ public final class TransferClient {
           tracker.snapshot().getElapsed().toMillis(),
           "result",
           "success");
-      LOG.info("Completed upload for {}", fileName);
+      log.info("Completed upload for {}", fileName);
       return result;
     } catch (ShareFileTransferCancelledException e) {
       tracker.cancel();
@@ -376,7 +374,7 @@ public final class TransferClient {
       throw e;
     } catch (RuntimeException e) {
       tracker.fail();
-      LOG.error("Upload failed for {}", fileName, e);
+      log.error("Upload failed for {}", fileName, e);
       throw e;
     }
   }
@@ -578,7 +576,7 @@ public final class TransferClient {
               Math.max(-1, chunkIndex - 1),
               tracker.snapshot().getBytesTransferred());
         }
-        LOG.warn("Retrying chunk {} after failure", chunkIndex, e);
+        log.warn("Retrying chunk {} after failure", chunkIndex, e);
         sleepBackoff(attempt);
       }
     }

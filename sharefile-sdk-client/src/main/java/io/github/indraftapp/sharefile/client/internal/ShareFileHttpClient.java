@@ -28,8 +28,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Internal HTTP client that wraps {@link HttpTransport} and adds SDK concerns.
@@ -45,9 +44,8 @@ import org.slf4j.LoggerFactory;
  *   <li>Metrics recording via {@link MetricsProvider}
  * </ul>
  */
+@Slf4j
 public final class ShareFileHttpClient {
-
-  private static final Logger LOG = LoggerFactory.getLogger(ShareFileHttpClient.class);
   private static final int MAX_JSON_RESPONSE_BYTES = 10 * 1024 * 1024; // 10 MB
 
   private final HttpTransport transport;
@@ -364,7 +362,7 @@ public final class ShareFileHttpClient {
 
       // 401: try token refresh once
       if (status == 401 && allowTokenRefresh) {
-        LOG.debug("Received 401, refreshing token and retrying");
+        log.debug("Received 401, refreshing token and retrying");
         tokenManager.refreshAccessToken();
         return executeSingle(method, uri, jsonBody, requestId, false);
       }
@@ -514,15 +512,15 @@ public final class ShareFileHttpClient {
   }
 
   private void logRequest(String method, URI uri, Map<String, String> headers, byte[] jsonBody) {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("HTTP request {} {}", method, uri);
+    if (log.isDebugEnabled()) {
+      log.debug("HTTP request {} {}", method, uri);
     }
-    if (LOG.isTraceEnabled()) {
+    if (log.isTraceEnabled()) {
       String body =
           jsonBody == null
               ? ""
               : LogSanitizer.redactBody(new String(jsonBody, StandardCharsets.UTF_8));
-      LOG.trace(
+      log.trace(
           "HTTP request trace method={} uri={} headers={} body={}",
           method,
           uri,
@@ -532,11 +530,11 @@ public final class ShareFileHttpClient {
   }
 
   private void logResponse(String method, URI uri, int status, Map<String, List<String>> headers) {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("HTTP response {} {} -> {}", method, uri, status);
+    if (log.isDebugEnabled()) {
+      log.debug("HTTP response {} {} -> {}", method, uri, status);
     }
-    if (LOG.isTraceEnabled()) {
-      LOG.trace(
+    if (log.isTraceEnabled()) {
+      log.trace(
           "HTTP response trace method={} uri={} status={} headers={}",
           method,
           uri,
@@ -619,7 +617,7 @@ public final class ShareFileHttpClient {
       try {
         return Long.parseLong(retryAfterValues.get(0));
       } catch (NumberFormatException e) {
-        LOG.debug("Unparseable Retry-After header: {}", retryAfterValues.get(0));
+        log.debug("Unparseable Retry-After header: {}", retryAfterValues.get(0));
       }
     }
     return -1;

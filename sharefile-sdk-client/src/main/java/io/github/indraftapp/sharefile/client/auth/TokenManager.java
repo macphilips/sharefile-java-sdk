@@ -32,8 +32,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Manages OAuth2 access tokens for the ShareFile API.
@@ -55,9 +54,8 @@ import org.slf4j.LoggerFactory;
  * <p>This class is thread-safe. Concurrent callers share the same valid token via a {@link
  * ReentrantReadWriteLock}.
  */
+@Slf4j
 public final class TokenManager implements AutoCloseable {
-
-  private static final Logger LOG = LoggerFactory.getLogger(TokenManager.class);
   private static final int MAX_REFRESH_RETRIES = 3;
   private static final Duration[] RETRY_BACKOFFS = {
     Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(4)
@@ -364,8 +362,8 @@ public final class TokenManager implements AutoCloseable {
     var request = buildFormEncodedRequest(tokenEndpoint, bodyBytes, config.getReadTimeout());
 
     try (HttpTransport.HttpResponse response = transport.execute(request)) {
-      if (LOG.isTraceEnabled()) {
-        LOG.trace(
+      if (log.isTraceEnabled()) {
+        log.trace(
             "Token request trace uri={} headers={} body={}",
             tokenEndpoint,
             LogSanitizer.redactHeaders(request.headers()),
@@ -438,15 +436,15 @@ public final class TokenManager implements AutoCloseable {
       try {
         OAuthToken refreshed = performRefreshWithRetries();
         applyToken(refreshed);
-        LOG.info("Proactive token refresh succeeded");
+        log.info("Proactive token refresh succeeded");
       } catch (ShareFileAuthenticationException e) {
-        LOG.warn("Proactive refresh failed, attempting full re-auth", e);
+        log.warn("Proactive refresh failed, attempting full re-auth", e);
         try {
           OAuthToken token = performFullAuthentication();
           applyToken(token);
-          LOG.info("Full re-authentication succeeded after proactive refresh failure");
+          log.info("Full re-authentication succeeded after proactive refresh failure");
         } catch (ShareFileAuthenticationException reAuthEx) {
-          LOG.error("Full re-authentication also failed", reAuthEx);
+          log.error("Full re-authentication also failed", reAuthEx);
           // Token will be refreshed on next getAccessToken() call
         }
       }
@@ -508,20 +506,20 @@ public final class TokenManager implements AutoCloseable {
       try {
         OAuthToken refreshed = performRefreshWithRetries();
         applyToken(refreshed);
-        LOG.info("Token refresh succeeded");
+        log.info("Token refresh succeeded");
         return refreshed.getAccessToken();
       } catch (ShareFileAuthenticationException e) {
         if (forcedRefresh) {
-          LOG.warn("Forced token refresh failed, falling back to full re-auth", e);
+          log.warn("Forced token refresh failed, falling back to full re-auth", e);
         } else {
-          LOG.warn("Token refresh failed, falling back to full re-auth", e);
+          log.warn("Token refresh failed, falling back to full re-auth", e);
         }
       }
     }
 
     OAuthToken token = performFullAuthentication();
     applyToken(token);
-    LOG.info("Token authentication succeeded");
+    log.info("Token authentication succeeded");
     return token.getAccessToken();
   }
 
