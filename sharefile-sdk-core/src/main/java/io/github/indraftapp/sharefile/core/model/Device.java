@@ -1,10 +1,14 @@
 package io.github.indraftapp.sharefile.core.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Represents a device known to a ShareFile account.
  */
+@Getter
+@Setter
 public class Device extends ODataEntity {
 
     @JsonProperty("DeviceName")
@@ -15,28 +19,4 @@ public class Device extends ODataEntity {
 
     @JsonProperty("User")
     private User user;
-
-    public String getDeviceName() {
-        return deviceName;
-    }
-
-    public void setDeviceName(String deviceName) {
-        this.deviceName = deviceName;
-    }
-
-    public String getDeviceType() {
-        return deviceType;
-    }
-
-    public void setDeviceType(String deviceType) {
-        this.deviceType = deviceType;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
 }

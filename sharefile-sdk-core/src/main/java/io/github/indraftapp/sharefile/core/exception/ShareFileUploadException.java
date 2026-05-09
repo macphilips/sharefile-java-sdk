@@ -1,8 +1,11 @@
 package io.github.indraftapp.sharefile.core.exception;
 
+import lombok.Getter;
+
 /**
  * Thrown when a file upload fails.
  */
+@Getter
 public class ShareFileUploadException extends ShareFileTransferException {
 
     private final boolean resumable;
@@ -23,17 +26,5 @@ public class ShareFileUploadException extends ShareFileTransferException {
         this.resumable = resumable;
         this.lastSuccessfulChunkIndex = lastSuccessfulChunkIndex;
         this.bytesTransferred = bytesTransferred;
-    }
-
-    public boolean isResumable() {
-        return resumable;
-    }
-
-    public int getLastSuccessfulChunkIndex() {
-        return lastSuccessfulChunkIndex;
-    }
-
-    public long getBytesTransferred() {
-        return bytesTransferred;
     }
 }

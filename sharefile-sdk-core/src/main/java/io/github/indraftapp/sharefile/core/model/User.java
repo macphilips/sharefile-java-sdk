@@ -7,6 +7,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.indraftapp.sharefile.core.jackson.ODataTypeResolver;
 import io.github.indraftapp.sharefile.core.model.response.UserPreferences;
 import io.github.indraftapp.sharefile.core.model.response.UserSecurity;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 
@@ -21,6 +23,8 @@ import java.util.List;
         defaultImpl = User.class
 )
 @JsonTypeIdResolver(ODataTypeResolver.class)
+@Getter
+@Setter
 public class User extends ODataEntity {
 
     @JsonProperty("Email")
@@ -46,68 +50,4 @@ public class User extends ODataEntity {
 
     @JsonProperty("Roles")
     private List<String> roles;
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getCompany() {
-        return company;
-    }
-
-    public void setCompany(String company) {
-        this.company = company;
-    }
-
-    public Zone getDefaultZone() {
-        return defaultZone;
-    }
-
-    public void setDefaultZone(Zone defaultZone) {
-        this.defaultZone = defaultZone;
-    }
-
-    public UserSecurity getSecurity() {
-        return security;
-    }
-
-    public void setSecurity(UserSecurity security) {
-        this.security = security;
-    }
-
-    public UserPreferences getPreferences() {
-        return preferences;
-    }
-
-    public void setPreferences(UserPreferences preferences) {
-        this.preferences = preferences;
-    }
-
-    public List<String> getRoles() {
-        return roles;
-    }
-
-    public void setRoles(List<String> roles) {
-        this.roles = roles;
-    }
 }

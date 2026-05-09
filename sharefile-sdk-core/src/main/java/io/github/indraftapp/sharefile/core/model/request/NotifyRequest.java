@@ -2,6 +2,8 @@ package io.github.indraftapp.sharefile.core.model.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 
@@ -9,6 +11,8 @@ import java.util.List;
  * Request payload for notifying ShareFile users with a custom message.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Getter
+@Setter
 public class NotifyRequest {
 
     @JsonProperty("UserIds")
@@ -16,20 +20,4 @@ public class NotifyRequest {
 
     @JsonProperty("Message")
     private String message;
-
-    public List<String> getUserIds() {
-        return userIds;
-    }
-
-    public void setUserIds(List<String> userIds) {
-        this.userIds = userIds;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
 }

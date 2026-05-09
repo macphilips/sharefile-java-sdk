@@ -28,6 +28,13 @@ subprojects {
         mavenCentral()
     }
 
+    dependencies {
+        add("compileOnly", "org.projectlombok:lombok:1.18.46")
+        add("annotationProcessor", "org.projectlombok:lombok:1.18.46")
+        add("testCompileOnly", "org.projectlombok:lombok:1.18.46")
+        add("testAnnotationProcessor", "org.projectlombok:lombok:1.18.46")
+    }
+
     configure<JavaPluginExtension> {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

@@ -1,8 +1,11 @@
 package io.github.indraftapp.sharefile.core.exception;
 
+import lombok.Getter;
+
 /**
  * Exception thrown when the ShareFile API returns an error response.
  */
+@Getter
 public class ShareFileApiException extends ShareFileException {
 
     private final int httpStatus;
@@ -35,29 +38,5 @@ public class ShareFileApiException extends ShareFileException {
         this.requestId = requestId;
         this.requestMethod = requestMethod;
         this.requestUri = requestUri;
-    }
-
-    public int getHttpStatus() {
-        return httpStatus;
-    }
-
-    public String getErrorCode() {
-        return errorCode;
-    }
-
-    public String getErrorMessage() {
-        return errorMessage;
-    }
-
-    public String getRequestId() {
-        return requestId;
-    }
-
-    public String getRequestMethod() {
-        return requestMethod;
-    }
-
-    public String getRequestUri() {
-        return requestUri;
     }
 }

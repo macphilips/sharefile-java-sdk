@@ -1,12 +1,16 @@
 package io.github.indraftapp.sharefile.core.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Instant;
 
 /**
  * Represents a favorite item entry for a ShareFile user.
  */
+@Getter
+@Setter
 public class Favorite extends ODataEntity {
 
     @JsonProperty("Item")
@@ -14,20 +18,4 @@ public class Favorite extends ODataEntity {
 
     @JsonProperty("CreationDate")
     private Instant creationDate;
-
-    public Item getItem() {
-        return item;
-    }
-
-    public void setItem(Item item) {
-        this.item = item;
-    }
-
-    public Instant getCreationDate() {
-        return creationDate;
-    }
-
-    public void setCreationDate(Instant creationDate) {
-        this.creationDate = creationDate;
-    }
 }

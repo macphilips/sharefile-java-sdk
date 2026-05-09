@@ -45,6 +45,7 @@ If an endpoint, model field, or behavior is unclear, do **not** guess. Mark it a
 | Core HTTP | `java.net.http.HttpClient` |
 | Spring HTTP adapter | Spring `RestClient` |
 | Serialization | Jackson |
+| Boilerplate reduction | Lombok, compile-only with annotation processing |
 | JSON style | ShareFile/OData v3 JSON Light, PascalCase properties |
 | Framework requirement | None for core/client modules |
 | Optional framework | Spring Boot 3 starter |
@@ -340,7 +341,25 @@ Configure Jackson with:
 - PascalCase support where useful
 - explicit handling for OData metadata fields
 
-### 7.4 Exceptions
+### 7.4 Lombok
+
+Use Lombok to reduce repetitive boilerplate when it does not obscure behavior or change API semantics.
+
+Preferred usage:
+
+- `@Getter` / `@Setter` for straightforward Java beans and DTOs
+- targeted constructor annotations when they clearly replace trivial boilerplate
+- compile-only / annotation-processor wiring only, never as a runtime dependency
+
+Use Lombok conservatively:
+
+- keep explicit methods when behavior is non-trivial
+- preserve Jackson annotations and field-level JSON mappings
+- preserve JavaDoc on public API types and non-obvious methods
+- avoid `@Data` on SDK models
+- avoid Lombok-generated `equals`, `hashCode`, or `toString` on recursive or graph-shaped entities unless explicitly required by a ticket
+
+### 7.5 Exceptions
 
 SDK exceptions are unchecked.
 
@@ -348,7 +367,7 @@ Follow the exception hierarchy defined in the tech spec and ticket `SF-03`.
 
 Do not throw raw `IOException`, `InterruptedException`, `HttpTimeoutException`, or Jackson exceptions from public SDK methods. Wrap them in SDK-specific exceptions.
 
-### 7.5 Thread Safety
+### 7.6 Thread Safety
 
 `ShareFileClient` and resource clients should be safe for concurrent use unless explicitly documented otherwise.
 
@@ -356,7 +375,7 @@ Do not throw raw `IOException`, `InterruptedException`, `HttpTimeoutException`, 
 
 If implementing async operations, preserve interrupt status when catching `InterruptedException`.
 
-### 7.6 Visibility
+### 7.7 Visibility
 
 Use the narrowest visibility possible.
 

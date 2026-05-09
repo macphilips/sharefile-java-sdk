@@ -4,10 +4,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.indraftapp.sharefile.core.model.response.AccountPreferences;
 import io.github.indraftapp.sharefile.core.model.response.Branding;
 import io.github.indraftapp.sharefile.core.model.response.SSOAccountProvider;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Represents a ShareFile account and its account-level settings.
  */
+@Getter
+@Setter
 public class Account extends ODataEntity {
 
     @JsonProperty("Subdomain")
@@ -21,36 +25,4 @@ public class Account extends ODataEntity {
 
     @JsonProperty("SSO")
     private SSOAccountProvider sso;
-
-    public String getSubdomain() {
-        return subdomain;
-    }
-
-    public void setSubdomain(String subdomain) {
-        this.subdomain = subdomain;
-    }
-
-    public AccountPreferences getPreferences() {
-        return preferences;
-    }
-
-    public void setPreferences(AccountPreferences preferences) {
-        this.preferences = preferences;
-    }
-
-    public Branding getBranding() {
-        return branding;
-    }
-
-    public void setBranding(Branding branding) {
-        this.branding = branding;
-    }
-
-    public SSOAccountProvider getSso() {
-        return sso;
-    }
-
-    public void setSso(SSOAccountProvider sso) {
-        this.sso = sso;
-    }
 }

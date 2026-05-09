@@ -1,8 +1,11 @@
 package io.github.indraftapp.sharefile.core.exception;
 
+import lombok.Getter;
+
 /**
  * Thrown when the ShareFile API returns 429 Too Many Requests.
  */
+@Getter
 public class ShareFileRateLimitException extends ShareFileApiException {
 
     private final long retryAfterSeconds;
@@ -12,9 +15,5 @@ public class ShareFileRateLimitException extends ShareFileApiException {
                                        long retryAfterSeconds) {
         super(429, errorCode, errorMessage, requestId, requestMethod, requestUri);
         this.retryAfterSeconds = retryAfterSeconds;
-    }
-
-    public long getRetryAfterSeconds() {
-        return retryAfterSeconds;
     }
 }

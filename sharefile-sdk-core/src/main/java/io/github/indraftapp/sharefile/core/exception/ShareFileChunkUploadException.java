@@ -1,8 +1,11 @@
 package io.github.indraftapp.sharefile.core.exception;
 
+import lombok.Getter;
+
 /**
  * Thrown when a single chunk upload fails after retries.
  */
+@Getter
 public class ShareFileChunkUploadException extends ShareFileUploadException {
 
     private final int chunkIndex;
@@ -14,13 +17,5 @@ public class ShareFileChunkUploadException extends ShareFileUploadException {
         super(message, cause, true, lastSuccessfulChunkIndex, bytesTransferred);
         this.chunkIndex = chunkIndex;
         this.offset = offset;
-    }
-
-    public int getChunkIndex() {
-        return chunkIndex;
-    }
-
-    public long getOffset() {
-        return offset;
     }
 }

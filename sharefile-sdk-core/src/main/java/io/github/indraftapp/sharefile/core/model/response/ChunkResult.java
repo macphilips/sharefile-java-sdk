@@ -2,11 +2,15 @@ package io.github.indraftapp.sharefile.core.model.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Response payload describing the status of an uploaded chunk.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Getter
+@Setter
 public class ChunkResult {
 
     @JsonProperty("ChunkNumber")
@@ -17,28 +21,4 @@ public class ChunkResult {
 
     @JsonProperty("Hash")
     private String hash;
-
-    public Integer getChunkNumber() {
-        return chunkNumber;
-    }
-
-    public void setChunkNumber(Integer chunkNumber) {
-        this.chunkNumber = chunkNumber;
-    }
-
-    public Boolean getIsComplete() {
-        return isComplete;
-    }
-
-    public void setIsComplete(Boolean isComplete) {
-        this.isComplete = isComplete;
-    }
-
-    public String getHash() {
-        return hash;
-    }
-
-    public void setHash(String hash) {
-        this.hash = hash;
-    }
 }

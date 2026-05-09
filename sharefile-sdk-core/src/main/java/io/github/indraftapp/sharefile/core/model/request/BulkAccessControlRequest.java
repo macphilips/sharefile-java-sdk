@@ -3,6 +3,8 @@ package io.github.indraftapp.sharefile.core.model.request;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.indraftapp.sharefile.core.model.AccessControl;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 
@@ -10,6 +12,8 @@ import java.util.List;
  * Request payload for applying access-control changes to multiple ShareFile principals.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Getter
+@Setter
 public class BulkAccessControlRequest {
 
     @JsonProperty("AccessControls")
@@ -23,36 +27,4 @@ public class BulkAccessControlRequest {
 
     @JsonProperty("Recursive")
     private Boolean recursive;
-
-    public List<AccessControl> getAccessControls() {
-        return accessControls;
-    }
-
-    public void setAccessControls(List<AccessControl> accessControls) {
-        this.accessControls = accessControls;
-    }
-
-    public Boolean getNotifyUser() {
-        return notifyUser;
-    }
-
-    public void setNotifyUser(Boolean notifyUser) {
-        this.notifyUser = notifyUser;
-    }
-
-    public String getNotifyMessage() {
-        return notifyMessage;
-    }
-
-    public void setNotifyMessage(String notifyMessage) {
-        this.notifyMessage = notifyMessage;
-    }
-
-    public Boolean getRecursive() {
-        return recursive;
-    }
-
-    public void setRecursive(Boolean recursive) {
-        this.recursive = recursive;
-    }
 }

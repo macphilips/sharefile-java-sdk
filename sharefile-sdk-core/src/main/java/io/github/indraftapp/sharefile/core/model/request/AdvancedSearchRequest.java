@@ -2,11 +2,15 @@ package io.github.indraftapp.sharefile.core.model.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Request payload for ShareFile advanced-search operations.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Getter
+@Setter
 public class AdvancedSearchRequest {
 
     @JsonProperty("Query")
@@ -17,28 +21,4 @@ public class AdvancedSearchRequest {
 
     @JsonProperty("ParentID")
     private String parentID;
-
-    public String getQuery() {
-        return query;
-    }
-
-    public void setQuery(String query) {
-        this.query = query;
-    }
-
-    public String getItemType() {
-        return itemType;
-    }
-
-    public void setItemType(String itemType) {
-        this.itemType = itemType;
-    }
-
-    public String getParentID() {
-        return parentID;
-    }
-
-    public void setParentID(String parentID) {
-        this.parentID = parentID;
-    }
 }

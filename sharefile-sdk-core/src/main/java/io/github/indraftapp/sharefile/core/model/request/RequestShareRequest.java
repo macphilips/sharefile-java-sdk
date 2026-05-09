@@ -2,6 +2,8 @@ package io.github.indraftapp.sharefile.core.model.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.util.List;
@@ -10,6 +12,8 @@ import java.util.List;
  * Request payload for creating a ShareFile request-a-file share.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Getter
+@Setter
 public class RequestShareRequest {
 
     @JsonProperty("Recipients")
@@ -41,84 +45,4 @@ public class RequestShareRequest {
 
     @JsonProperty("SendInterval")
     private Integer sendInterval;
-
-    public List<String> getRecipients() {
-        return recipients;
-    }
-
-    public void setRecipients(List<String> recipients) {
-        this.recipients = recipients;
-    }
-
-    public String getSubject() {
-        return subject;
-    }
-
-    public void setSubject(String subject) {
-        this.subject = subject;
-    }
-
-    public String getBody() {
-        return body;
-    }
-
-    public void setBody(String body) {
-        this.body = body;
-    }
-
-    public Instant getExpirationDate() {
-        return expirationDate;
-    }
-
-    public void setExpirationDate(Instant expirationDate) {
-        this.expirationDate = expirationDate;
-    }
-
-    public Boolean getRequireLogin() {
-        return requireLogin;
-    }
-
-    public void setRequireLogin(Boolean requireLogin) {
-        this.requireLogin = requireLogin;
-    }
-
-    public Boolean getRequireUserInfo() {
-        return requireUserInfo;
-    }
-
-    public void setRequireUserInfo(Boolean requireUserInfo) {
-        this.requireUserInfo = requireUserInfo;
-    }
-
-    public String getFolderID() {
-        return folderID;
-    }
-
-    public void setFolderID(String folderID) {
-        this.folderID = folderID;
-    }
-
-    public Instant getTrackUntilDate() {
-        return trackUntilDate;
-    }
-
-    public void setTrackUntilDate(Instant trackUntilDate) {
-        this.trackUntilDate = trackUntilDate;
-    }
-
-    public Integer getSendFrequency() {
-        return sendFrequency;
-    }
-
-    public void setSendFrequency(Integer sendFrequency) {
-        this.sendFrequency = sendFrequency;
-    }
-
-    public Integer getSendInterval() {
-        return sendInterval;
-    }
-
-    public void setSendInterval(Integer sendInterval) {
-        this.sendInterval = sendInterval;
-    }
 }
