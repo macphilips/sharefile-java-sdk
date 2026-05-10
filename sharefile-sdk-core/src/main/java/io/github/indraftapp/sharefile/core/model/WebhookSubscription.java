@@ -18,5 +18,5 @@ public class WebhookSubscription extends ODataEntity {
   private String webhookUrl;
 
   @JsonProperty("Events")
-  private List<String> events;
+  private List<WebhookEvent> events;
 }

@@ -14,12 +14,15 @@ import io.github.indraftapp.sharefile.core.model.Item;
 import io.github.indraftapp.sharefile.core.model.ODataEntity;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
 import io.github.indraftapp.sharefile.core.model.Share;
+import io.github.indraftapp.sharefile.core.model.WebhookSubscription;
 import io.github.indraftapp.sharefile.core.model.enums.PreviewStatus;
 import io.github.indraftapp.sharefile.core.model.request.BulkAccessControlRequest;
 import io.github.indraftapp.sharefile.core.model.request.RequestShareRequest;
 import io.github.indraftapp.sharefile.core.model.request.SendShareRequest;
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import lombok.Getter;
+import lombok.Setter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -260,36 +263,53 @@ class ShareFileObjectMapperTest {
     assertThat(json.at("/AccessControlParams/0/AccessControl/CanDownload").asBoolean()).isTrue();
   }
 
-  private static final class PascalCasePayload {
-    private String fileName;
+  @Test
+  void shouldDeserializeWebhookSubscriptionEventsAsStructuredObjects() throws Exception {
+    String json =
+        """
+                {
+                  "SubscriptionContext": {
+                    "ResourceType": "Items",
+                    "ResourceId": "folder-id"
+                  },
+                  "WebhookUrl": "https://myapp.example.com/webhooks/sharefile",
+                  "Events": [
+                    {
+                      "ResourceType": "Items",
+                      "OperationName": "Upload"
+                    },
+                    {
+                      "ResourceType": "Items",
+                      "OperationName": "Delete"
+                    }
+                  ]
+                }
+                """;
 
-    public String getFileName() {
-      return fileName;
-    }
+    WebhookSubscription subscription = mapper.readValue(json, WebhookSubscription.class);
 
-    public void setFileName(String fileName) {
-      this.fileName = fileName;
-    }
+    assertThat(subscription.getSubscriptionContext()).isNotNull();
+    assertThat(subscription.getSubscriptionContext().getResourceType()).isEqualTo("Items");
+    assertThat(subscription.getSubscriptionContext().getResourceId()).isEqualTo("folder-id");
+    assertThat(subscription.getWebhookUrl())
+        .isEqualTo("https://myapp.example.com/webhooks/sharefile");
+    assertThat(subscription.getEvents()).hasSize(2);
+    assertThat(subscription.getEvents().get(0).getResourceType()).isEqualTo("Items");
+    assertThat(subscription.getEvents().get(0).getOperationName()).isEqualTo("Upload");
+    assertThat(subscription.getEvents().get(1).getResourceType()).isEqualTo("Items");
+    assertThat(subscription.getEvents().get(1).getOperationName()).isEqualTo("Delete");
   }
 
+  @Setter
+  @Getter
+  private static final class PascalCasePayload {
+    private String fileName;
+  }
+
+  @Setter
+  @Getter
   private static final class TimePayload {
     private Instant instant;
     private ZonedDateTime zonedDateTime;
-
-    public Instant getInstant() {
-      return instant;
-    }
-
-    public void setInstant(Instant instant) {
-      this.instant = instant;
-    }
-
-    public ZonedDateTime getZonedDateTime() {
-      return zonedDateTime;
-    }
-
-    public void setZonedDateTime(ZonedDateTime zonedDateTime) {
-      this.zonedDateTime = zonedDateTime;
-    }
   }
 }

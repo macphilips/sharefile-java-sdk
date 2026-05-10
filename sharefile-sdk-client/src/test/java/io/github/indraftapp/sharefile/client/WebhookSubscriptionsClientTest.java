@@ -4,8 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.github.indraftapp.sharefile.client.retry.RetryPolicy;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
+import io.github.indraftapp.sharefile.core.model.WebhookEvent;
 import io.github.indraftapp.sharefile.core.model.WebhookSubscription;
+import io.github.indraftapp.sharefile.core.model.response.SubscriptionContext;
 import io.github.indraftapp.sharefile.core.odata.ODataQuery;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class WebhookSubscriptionsClientTest {
@@ -57,6 +60,57 @@ class WebhookSubscriptionsClientTest {
           ClientTestSupport.BASE_URL + "/WebhookSubscriptions",
           transport.requests.get(1).uri().toString());
       assertEquals("{\"WebhookUrl\":\"https://example.test\"}", transport.requests.get(1).body());
+    }
+  }
+
+  @Test
+  void createSerializesFolderSubscriptionContextAndStructuredEvents() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Id":"sub-1",
+          "SubscriptionContext":{"ResourceType":"Folder","ResourceId":"folder-123"},
+          "WebhookUrl":"https://example.test/webhooks/sharefile",
+          "Events":[
+            {"ResourceType":"File","OperationName":"Upload"},
+            {"ResourceType":"File","OperationName":"Delete"}
+          ]
+        }
+        """);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      SubscriptionContext subscriptionContext = new SubscriptionContext();
+      subscriptionContext.setResourceType("Folder");
+      subscriptionContext.setResourceId("folder-123");
+
+      WebhookEvent uploadEvent = new WebhookEvent();
+      uploadEvent.setResourceType("File");
+      uploadEvent.setOperationName("Upload");
+
+      WebhookEvent deleteEvent = new WebhookEvent();
+      deleteEvent.setResourceType("File");
+      deleteEvent.setOperationName("Delete");
+
+      WebhookSubscription payload = new WebhookSubscription();
+      payload.setSubscriptionContext(subscriptionContext);
+      payload.setWebhookUrl("https://example.test/webhooks/sharefile");
+      payload.setEvents(List.of(uploadEvent, deleteEvent));
+
+      WebhookSubscription created =
+          context.webhookSubscriptionsClient().create(payload, RetryPolicy.retryOnServerError(1));
+
+      assertEquals("Folder", created.getSubscriptionContext().getResourceType());
+      assertEquals("folder-123", created.getSubscriptionContext().getResourceId());
+      assertEquals("Upload", created.getEvents().get(0).getOperationName());
+      assertEquals("Delete", created.getEvents().get(1).getOperationName());
+      assertEquals(
+          "{\"SubscriptionContext\":{\"ResourceType\":\"Folder\",\"ResourceId\":\"folder-123\"},"
+              + "\"WebhookUrl\":\"https://example.test/webhooks/sharefile\","
+              + "\"Events\":[{\"ResourceType\":\"File\",\"OperationName\":\"Upload\"},"
+              + "{\"ResourceType\":\"File\",\"OperationName\":\"Delete\"}]}",
+          transport.getLastRequest().body());
     }
   }
 }
