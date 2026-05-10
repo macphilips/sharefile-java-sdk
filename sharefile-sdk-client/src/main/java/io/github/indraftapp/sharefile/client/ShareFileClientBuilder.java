@@ -37,6 +37,7 @@ public final class ShareFileClientBuilder {
   private String clientId;
   private String clientSecret;
   private String authorizationCode;
+  private String authorizationCodeRedirectUri;
   private String username;
   private String password;
   private String accessToken;
@@ -73,6 +74,14 @@ public final class ShareFileClientBuilder {
 
   public ShareFileClientBuilder authorizationCode(String code) {
     this.authorizationCode = Objects.requireNonNull(code, "code must not be null");
+    this.authorizationCodeRedirectUri = null;
+    return this;
+  }
+
+  public ShareFileClientBuilder authorizationCodeRedirectUri(String redirectUri) {
+    this.authorizationCodeRedirectUri =
+        Objects.requireNonNull(redirectUri, "redirectUri must not be null");
+    this.authorizationCode = null;
     return this;
   }
 
@@ -243,25 +252,35 @@ public final class ShareFileClientBuilder {
     if (subdomain == null || subdomain.isBlank()) {
       throw new IllegalStateException("subdomain must be configured");
     }
-    if (authorizationCode != null && username != null) {
+    if ((authorizationCode != null || authorizationCodeRedirectUri != null) && username != null) {
       throw new IllegalStateException(
           "authorizationCode() and passwordGrant() are mutually exclusive");
     }
-    if ((authorizationCode != null || username != null)
+    if (authorizationCode != null && authorizationCodeRedirectUri != null) {
+      throw new IllegalStateException(
+          "authorizationCode() and authorizationCodeRedirectUri() are mutually exclusive");
+    }
+    if ((authorizationCode != null || authorizationCodeRedirectUri != null || username != null)
         && (clientId == null || clientSecret == null)) {
       throw new IllegalStateException(
-          "authorizationCode() and passwordGrant() require clientCredentials()");
+          "authorizationCode(), authorizationCodeRedirectUri(), and passwordGrant() require "
+              + "clientCredentials()");
     }
     if (accessToken != null && (clientId == null || clientSecret == null)) {
       throw new IllegalStateException("accessToken() requires clientCredentials()");
     }
-    if (credentialProvider != null && (authorizationCode != null || username != null)) {
+    if (credentialProvider != null
+        && (authorizationCode != null
+            || authorizationCodeRedirectUri != null
+            || username != null)) {
       throw new IllegalStateException(
-          "credentialProvider() cannot be combined with authorizationCode() or passwordGrant()");
+          "credentialProvider() cannot be combined with authorizationCode(), "
+              + "authorizationCodeRedirectUri(), or passwordGrant()");
     }
 
     boolean hasProvider = credentialProvider != null;
-    boolean hasGrant = authorizationCode != null || username != null;
+    boolean hasGrant =
+        authorizationCode != null || authorizationCodeRedirectUri != null || username != null;
     boolean hasSeedToken = accessToken != null;
     if (!hasProvider && !hasGrant && !hasSeedToken) {
       throw new IllegalStateException("One authentication approach must be configured");
@@ -299,12 +318,13 @@ public final class ShareFileClientBuilder {
       return credentialProvider;
     }
 
-    if (authorizationCode != null) {
-      return new StaticCredentialProvider(
-          Credentials.builder()
-              .clientCredentials(clientId, clientSecret)
-              .authorizationCode(authorizationCode)
-              .build());
+    if (authorizationCode != null || authorizationCodeRedirectUri != null) {
+      Credentials.Builder builder = Credentials.builder().clientCredentials(clientId, clientSecret);
+      Credentials credentials =
+          authorizationCodeRedirectUri != null
+              ? builder.authorizationCodeRedirectUri(authorizationCodeRedirectUri).build()
+              : builder.authorizationCode(authorizationCode).build();
+      return new StaticCredentialProvider(credentials);
     }
     if (username != null) {
       return new StaticCredentialProvider(

@@ -49,13 +49,15 @@ class ItemSerializationTest {
   }
 
   @Test
-  void shouldSerializeNullFieldsAsNull() throws Exception {
+  void shouldOmitUnsetNullFields() throws Exception {
     Item item = new Item();
     item.setName("Only Name Set");
 
     String json = mapper.writeValueAsString(item);
 
     assertThat(json).contains("\"Name\":\"Only Name Set\"");
+    assertThat(json).doesNotContain("\"Description\":null");
+    assertThat(json).doesNotContain("\"Creator\":null");
   }
 
   @Test

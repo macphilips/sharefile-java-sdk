@@ -25,6 +25,7 @@ class CredentialsTest {
     assertEquals("user@example.com", creds.username());
     assertEquals("pass123", creds.password());
     assertNull(creds.authorizationCode());
+    assertNull(creds.authorizationCodeRedirectUri());
   }
 
   @Test
@@ -39,8 +40,25 @@ class CredentialsTest {
     assertEquals("client-secret", creds.clientSecret());
     assertEquals(GrantType.AUTHORIZATION_CODE, creds.grantType());
     assertEquals("auth-code-123", creds.authorizationCode());
+    assertNull(creds.authorizationCodeRedirectUri());
     assertNull(creds.username());
     assertNull(creds.password());
+  }
+
+  @Test
+  void authorizationCodeRedirectGrantCreatesValidCredentials() {
+    Credentials creds =
+        Credentials.builder()
+            .clientCredentials("client-id", "client-secret")
+            .authorizationCodeRedirectUri(
+                "https://example.com/callback?code=auth-code-123&h=signature")
+            .build();
+
+    assertEquals(GrantType.AUTHORIZATION_CODE, creds.grantType());
+    assertNull(creds.authorizationCode());
+    assertEquals(
+        "https://example.com/callback?code=auth-code-123&h=signature",
+        creds.authorizationCodeRedirectUri());
   }
 
   @Test
@@ -54,35 +72,36 @@ class CredentialsTest {
   void missingClientSecretThrows() {
     assertThrows(
         NullPointerException.class,
-        () -> new Credentials("id", null, GrantType.PASSWORD, "user", "pass", null));
+        () -> new Credentials("id", null, GrantType.PASSWORD, "user", "pass", null, null));
   }
 
   @Test
   void passwordGrantMissingUsernameThrows() {
     assertThrows(
         NullPointerException.class,
-        () -> new Credentials("id", "secret", GrantType.PASSWORD, null, "pass", null));
+        () -> new Credentials("id", "secret", GrantType.PASSWORD, null, "pass", null, null));
   }
 
   @Test
   void passwordGrantMissingPasswordThrows() {
     assertThrows(
         NullPointerException.class,
-        () -> new Credentials("id", "secret", GrantType.PASSWORD, "user", null, null));
+        () -> new Credentials("id", "secret", GrantType.PASSWORD, "user", null, null, null));
   }
 
   @Test
   void authorizationCodeGrantMissingCodeThrows() {
     assertThrows(
         NullPointerException.class,
-        () -> new Credentials("id", "secret", GrantType.AUTHORIZATION_CODE, null, null, null));
+        () ->
+            new Credentials("id", "secret", GrantType.AUTHORIZATION_CODE, null, null, null, null));
   }
 
   @Test
   void refreshTokenGrantTypeThrowsIllegalArgument() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> new Credentials("id", "secret", GrantType.REFRESH_TOKEN, null, null, null));
+        () -> new Credentials("id", "secret", GrantType.REFRESH_TOKEN, null, null, null, null));
   }
 
   @Test

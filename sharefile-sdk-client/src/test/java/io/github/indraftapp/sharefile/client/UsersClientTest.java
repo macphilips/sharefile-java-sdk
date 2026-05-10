@@ -1,6 +1,7 @@
 package io.github.indraftapp.sharefile.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -124,6 +125,26 @@ class UsersClientTest {
       assertEquals(
           ClientTestSupport.BASE_URL + "/Users(user-1)/Groups",
           transport.requests.get(6).uri().toString());
+    }
+  }
+
+  @Test
+  void updateOmitsUnsetNullFieldsFromPatchPayload() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.User\",\"Id\":\"user-1\",\"Email\":\"person@example.com\"}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      User update = new User();
+      update.setEmail("person@example.com");
+
+      User saved = context.usersClient().update("user-1", update);
+
+      assertEquals("person@example.com", saved.getEmail());
+      assertEquals("PATCH", transport.getLastRequest().method());
+      assertTrue(transport.getLastRequest().body().contains("\"Email\":\"person@example.com\""));
+      assertFalse(transport.getLastRequest().body().contains("\"FirstName\":null"));
     }
   }
 }

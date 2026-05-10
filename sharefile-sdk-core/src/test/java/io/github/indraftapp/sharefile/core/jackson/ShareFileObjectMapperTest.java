@@ -15,6 +15,9 @@ import io.github.indraftapp.sharefile.core.model.ODataEntity;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
 import io.github.indraftapp.sharefile.core.model.Share;
 import io.github.indraftapp.sharefile.core.model.enums.PreviewStatus;
+import io.github.indraftapp.sharefile.core.model.request.BulkAccessControlRequest;
+import io.github.indraftapp.sharefile.core.model.request.RequestShareRequest;
+import io.github.indraftapp.sharefile.core.model.request.SendShareRequest;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -204,6 +207,57 @@ class ShareFileObjectMapperTest {
     assertThat(withDocThumbnailPreview.getPreviewStatus()).isEqualTo(PreviewStatus.CAN_DOC_THUMB);
     assertThat(withBlankPreviewStatus.getPreviewStatus()).isEqualTo(PreviewStatus.NONE);
     assertThat(withUnknownPreviewStatus.getPreviewStatus()).isEqualTo(PreviewStatus.UNKNOWN);
+  }
+
+  @Test
+  void shouldOmitNullFieldsDuringSerialization() throws Exception {
+    Item item = new Item();
+    item.setName("Only Name Set");
+
+    JsonNode json = mapper.readTree(mapper.writeValueAsBytes(item));
+
+    assertThat(json.get("Name").asText()).isEqualTo("Only Name Set");
+    assertThat(json.has("Description")).isFalse();
+    assertThat(json.has("Creator")).isFalse();
+  }
+
+  @Test
+  void shouldSerializeShareRecipientsAsRecipientObjects() throws Exception {
+    SendShareRequest sendShareRequest = new SendShareRequest();
+    sendShareRequest.setItems(java.util.List.of("item-1"));
+    sendShareRequest.setRecipients(java.util.List.of("send@example.com"));
+
+    RequestShareRequest requestShareRequest = new RequestShareRequest();
+    requestShareRequest.setFolderID("folder-1");
+    requestShareRequest.setRecipients(java.util.List.of("request@example.com"));
+
+    JsonNode sendJson = mapper.readTree(mapper.writeValueAsBytes(sendShareRequest));
+    JsonNode requestJson = mapper.readTree(mapper.writeValueAsBytes(requestShareRequest));
+
+    assertThat(sendJson.at("/Items/0/Id").asText()).isEqualTo("item-1");
+    assertThat(sendJson.at("/Recipients/0/User/Email").asText()).isEqualTo("send@example.com");
+    assertThat(requestJson.at("/Parent/Id").asText()).isEqualTo("folder-1");
+    assertThat(requestJson.at("/Recipients/0/User/Email").asText())
+        .isEqualTo("request@example.com");
+  }
+
+  @Test
+  void shouldSerializeBulkAccessControlParamsWithPerEntryFlags() throws Exception {
+    AccessControl accessControl = new AccessControl();
+    accessControl.setCanDownload(Boolean.TRUE);
+
+    BulkAccessControlRequest request = new BulkAccessControlRequest();
+    request.setAccessControls(java.util.List.of(accessControl));
+    request.setNotifyUser(Boolean.TRUE);
+    request.setNotifyMessage("granted");
+    request.setRecursive(Boolean.FALSE);
+
+    JsonNode json = mapper.readTree(mapper.writeValueAsBytes(request));
+
+    assertThat(json.at("/NotifyMessage").asText()).isEqualTo("granted");
+    assertThat(json.at("/AccessControlParams/0/NotifyUser").asBoolean()).isTrue();
+    assertThat(json.at("/AccessControlParams/0/Recursive").asBoolean()).isFalse();
+    assertThat(json.at("/AccessControlParams/0/AccessControl/CanDownload").asBoolean()).isTrue();
   }
 
   private static final class PascalCasePayload {

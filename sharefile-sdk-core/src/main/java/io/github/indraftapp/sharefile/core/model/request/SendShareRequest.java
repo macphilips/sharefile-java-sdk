@@ -19,7 +19,8 @@ public class SendShareRequest {
   @Setter(AccessLevel.NONE)
   private List<String> items;
 
-  @JsonProperty("Recipients")
+  @Getter(AccessLevel.NONE)
+  @Setter(AccessLevel.NONE)
   private List<String> recipients;
 
   @JsonProperty("Subject")
@@ -56,6 +57,14 @@ public class SendShareRequest {
     return items.stream().map(ItemReference::new).toList();
   }
 
+  @JsonProperty("Recipients")
+  public List<ShareRecipient> getSerializedRecipients() {
+    if (recipients == null) {
+      return null;
+    }
+    return recipients.stream().map(ShareRecipient::fromEmail).toList();
+  }
+
   @JsonIgnore
   public List<String> getItems() {
     return items;
@@ -63,6 +72,15 @@ public class SendShareRequest {
 
   public void setItems(List<String> items) {
     this.items = items;
+  }
+
+  @JsonIgnore
+  public List<String> getRecipients() {
+    return recipients;
+  }
+
+  public void setRecipients(List<String> recipients) {
+    this.recipients = recipients;
   }
 
   /** Minimal item reference shape required by the send-share API. */

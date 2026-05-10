@@ -156,10 +156,15 @@ class AccessControlsClientTest {
       assertEquals(
           ClientTestSupport.BASE_URL + "/Items(item-1)/AccessControls/BulkSet",
           transport.requests.get(0).uri().toString());
+      assertTrue(transport.requests.get(0).body().contains("\"AccessControlParams\":[{"));
+      assertTrue(transport.requests.get(0).body().contains("\"AccessControl\":{"));
+      assertTrue(transport.requests.get(0).body().contains("\"NotifyUser\":true"));
+      assertTrue(transport.requests.get(0).body().contains("\"NotifyMessage\":\"granted\""));
       assertEquals(
           ClientTestSupport.BASE_URL
               + "/AccessControls/BulkSetForPrincipal?principalId=principal-9",
           transport.requests.get(1).uri().toString());
+      assertTrue(transport.requests.get(1).body().contains("\"AccessControlParams\":[{"));
       assertEquals(
           ClientTestSupport.BASE_URL + "/AccessControls/Clone",
           transport.requests.get(2).uri().toString());

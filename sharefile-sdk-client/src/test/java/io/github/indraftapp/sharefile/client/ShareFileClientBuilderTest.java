@@ -26,6 +26,20 @@ class ShareFileClientBuilderTest {
   }
 
   @Test
+  void authorizationCodeRedirectUriBuilderBuildsSuccessfully() {
+    try (ShareFileClient client =
+        ShareFileClient.builder()
+            .subdomain("testco")
+            .clientCredentials("client-id", "client-secret")
+            .authorizationCodeRedirectUri("https://example.com/callback?code=auth-code&h=signature")
+            .httpTransport(new ClientTestSupport.TestTransport())
+            .build()) {
+      assertNotNull(client);
+      assertNotNull(client.items());
+    }
+  }
+
+  @Test
   void dynamicCredentialProviderRemainsLazyDuringBuild() {
     AtomicInteger calls = new AtomicInteger();
     CredentialProvider provider =

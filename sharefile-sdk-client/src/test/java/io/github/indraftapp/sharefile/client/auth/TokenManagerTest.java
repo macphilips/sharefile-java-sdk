@@ -124,6 +124,60 @@ class TokenManagerTest {
     assertFalse(body.contains("password"));
   }
 
+  @Test
+  void authorizationCodeRedirectGrantValidatesHmacAndExtractsCode() {
+    String redirectPath = "/oauth/callback";
+    String queryWithoutH = "code=auth-code-xyz&state=abc";
+    String signature =
+        HmacValidator.computeUrlEncodedHmac(redirectPath + "?" + queryWithoutH, CLIENT_SECRET);
+    credentialProvider =
+        new CountingCredentialProvider(
+            Credentials.builder()
+                .clientCredentials(CLIENT_ID, CLIENT_SECRET)
+                .authorizationCodeRedirectUri(
+                    "https://example.com" + redirectPath + "?" + queryWithoutH + "&h=" + signature)
+                .build());
+    mockTransport.enqueueTokenResponse("access-1", "refresh-1", 3600);
+    tokenManager = createTokenManager();
+
+    tokenManager.getAccessToken();
+
+    String body = mockTransport.requests.get(0).body;
+    assertTrue(body.contains("grant_type=authorization_code"));
+    assertTrue(body.contains("code=auth-code-xyz"));
+  }
+
+  @Test
+  void authorizationCodeRedirectGrantRejectsInvalidHmacBeforeTokenExchange() {
+    credentialProvider =
+        new CountingCredentialProvider(
+            Credentials.builder()
+                .clientCredentials(CLIENT_ID, CLIENT_SECRET)
+                .authorizationCodeRedirectUri(
+                    "https://example.com/oauth/callback?code=auth-code-xyz&h=invalid")
+                .build());
+    tokenManager = createTokenManager();
+
+    assertThrows(ShareFileAuthenticationException.class, tokenManager::getAccessToken);
+    assertEquals(
+        0, mockTransport.requests.size(), "No token exchange should happen on invalid HMAC");
+  }
+
+  @Test
+  void authorizationCodeRedirectGrantRejectsMissingHmacBeforeTokenExchange() {
+    credentialProvider =
+        new CountingCredentialProvider(
+            Credentials.builder()
+                .clientCredentials(CLIENT_ID, CLIENT_SECRET)
+                .authorizationCodeRedirectUri(
+                    "https://example.com/oauth/callback?code=auth-code-xyz")
+                .build());
+    tokenManager = createTokenManager();
+
+    assertThrows(ShareFileAuthenticationException.class, tokenManager::getAccessToken);
+    assertEquals(0, mockTransport.requests.size(), "No token exchange should happen without HMAC");
+  }
+
   // ── Token caching tests ───────────────────────────────────────────────
 
   @Test

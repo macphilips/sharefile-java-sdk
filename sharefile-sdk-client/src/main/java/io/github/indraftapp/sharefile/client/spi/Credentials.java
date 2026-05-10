@@ -25,7 +25,8 @@ public record Credentials(
     GrantType grantType,
     String username,
     String password,
-    String authorizationCode) {
+    String authorizationCode,
+    String authorizationCodeRedirectUri) {
 
   /** Validates required fields after construction. */
   public Credentials {
@@ -38,9 +39,12 @@ public record Credentials(
         Objects.requireNonNull(username, "username must not be null for PASSWORD grant");
         Objects.requireNonNull(password, "password must not be null for PASSWORD grant");
       }
-      case AUTHORIZATION_CODE ->
-          Objects.requireNonNull(
-              authorizationCode, "authorizationCode must not be null for AUTHORIZATION_CODE grant");
+      case AUTHORIZATION_CODE -> {
+        if (authorizationCode == null && authorizationCodeRedirectUri == null) {
+          throw new NullPointerException(
+              "authorizationCode or authorizationCodeRedirectUri must not be null for AUTHORIZATION_CODE grant");
+        }
+      }
       default ->
           throw new IllegalArgumentException(
               "Unsupported grant type for credentials: " + grantType);
@@ -61,6 +65,7 @@ public record Credentials(
     private String username;
     private String password;
     private String authorizationCode;
+    private String authorizationCodeRedirectUri;
 
     private Builder() {}
 
@@ -103,6 +108,23 @@ public record Credentials(
     public Builder authorizationCode(String code) {
       this.grantType = GrantType.AUTHORIZATION_CODE;
       this.authorizationCode = Objects.requireNonNull(code, "code must not be null");
+      this.authorizationCodeRedirectUri = null;
+      return this;
+    }
+
+    /**
+     * Configures an authorization-code grant using the full redirect URI returned by ShareFile.
+     *
+     * <p>This allows the SDK to validate the `h` signature before exchanging the code.
+     *
+     * @param redirectUri the full redirect URI including the `code` and `h` parameters
+     * @return this builder
+     */
+    public Builder authorizationCodeRedirectUri(String redirectUri) {
+      this.grantType = GrantType.AUTHORIZATION_CODE;
+      this.authorizationCodeRedirectUri =
+          Objects.requireNonNull(redirectUri, "redirectUri must not be null");
+      this.authorizationCode = null;
       return this;
     }
 
@@ -115,7 +137,13 @@ public record Credentials(
      */
     public Credentials build() {
       return new Credentials(
-          clientId, clientSecret, grantType, username, password, authorizationCode);
+          clientId,
+          clientSecret,
+          grantType,
+          username,
+          password,
+          authorizationCode,
+          authorizationCodeRedirectUri);
     }
   }
 }

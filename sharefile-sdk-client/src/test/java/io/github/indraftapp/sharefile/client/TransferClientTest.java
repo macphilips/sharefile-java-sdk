@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -320,6 +321,184 @@ class TransferClientTest {
       assertEquals("item-5", result.getItemId());
       assertTrue(executor.submissions > 0);
     }
+  }
+
+  @Test
+  void threadedUploadRetryDoesNotOvercountTransferredBytes() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Threaded",
+          "ChunkUri": "https://storage.example.com/chunk",
+          "FinishUri": "https://storage.example.com/finish"
+        }
+        """);
+    transport.enqueueResponse(500, "temporary".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueJsonResponse(200, "{\"ChunkNumber\":0,\"IsComplete\":true}");
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "ItemId": "item-6",
+          "FileName": "retry.bin",
+          "FileSize": 5
+        }
+        """);
+
+    Path file = Files.write(tempDir.resolve("retry.bin"), "abcde".getBytes(StandardCharsets.UTF_8));
+
+    try (ClientTestSupport.TestContext context =
+        ClientTestSupport.createContext(
+            transport, RetryConfig.builder().maxRetries(1).initialBackoff(Duration.ZERO).build())) {
+      UploadHandle handle =
+          context
+              .transferClient()
+              .uploadAsync(
+                  "folder-1",
+                  file,
+                  UploadOptions.builder()
+                      .method(UploadMethod.THREADED)
+                      .chunkSizeBytes(5)
+                      .threadCount(1)
+                      .build());
+
+      UploadResult result = handle.awaitOrThrow(Duration.ofSeconds(5));
+
+      assertEquals("item-6", result.getItemId());
+      assertEquals(5L, handle.progress().getBytesTransferred());
+      assertEquals(TransferState.COMPLETED, handle.progress().getState());
+    }
+  }
+
+  @Test
+  void cancelledDownloadSkipsNetworkAndTargetWritesBeforeStart() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    Path target =
+        Files.writeString(tempDir.resolve("cancelled.bin"), "keep-me", StandardCharsets.UTF_8);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      TransferClient transferClient = context.transferClient();
+      Object tracker = newProgressTracker(0L);
+      AtomicBoolean cancelled = new AtomicBoolean(true);
+
+      assertThrows(
+          io.github.indraftapp.sharefile.core.exception.ShareFileTransferCancelledException.class,
+          () ->
+              invokeDownloadInternal(
+                  transferClient,
+                  "item-1",
+                  target,
+                  DownloadOptions.defaults(),
+                  tracker,
+                  cancelled));
+
+      assertEquals("keep-me", Files.readString(target, StandardCharsets.UTF_8));
+      assertEquals(0, transport.requests.size());
+    }
+  }
+
+  @Test
+  void progressTrackerAddBytesIsAtomic() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      Object tracker = newProgressTracker(1000L);
+      invokeTrackerMethod(tracker, "start");
+
+      int threadCount = 8;
+      int incrementsPerThread = 250;
+      java.util.concurrent.ExecutorService executor =
+          java.util.concurrent.Executors.newFixedThreadPool(threadCount);
+      try {
+        List<? extends java.util.concurrent.Future<?>> futures =
+            java.util.stream.IntStream.range(0, threadCount)
+                .mapToObj(
+                    i ->
+                        executor.submit(
+                            () -> {
+                              try {
+                                for (int j = 0; j < incrementsPerThread; j++) {
+                                  invokeTrackerMethod(tracker, "addBytes", 1L);
+                                }
+                              } catch (Exception e) {
+                                throw new RuntimeException(e);
+                              }
+                            }))
+                .toList();
+        for (java.util.concurrent.Future<?> future : futures) {
+          future.get(5, TimeUnit.SECONDS);
+        }
+      } finally {
+        executor.shutdownNow();
+      }
+
+      TransferProgress progress = snapshot(tracker);
+      assertEquals(threadCount * incrementsPerThread, progress.getBytesTransferred());
+      assertEquals(TransferState.IN_PROGRESS, progress.getState());
+    }
+  }
+
+  private static Object newProgressTracker(long totalBytes) throws Exception {
+    Class<?> trackerClass =
+        Class.forName("io.github.indraftapp.sharefile.client.TransferClient$ProgressTracker");
+    var constructor =
+        trackerClass.getDeclaredConstructor(long.class, TransferProgressListener.class);
+    constructor.setAccessible(true);
+    return constructor.newInstance(totalBytes, null);
+  }
+
+  private static void invokeDownloadInternal(
+      TransferClient transferClient,
+      String itemId,
+      Path target,
+      DownloadOptions options,
+      Object tracker,
+      AtomicBoolean cancelled)
+      throws Exception {
+    var method =
+        TransferClient.class.getDeclaredMethod(
+            "downloadInternal",
+            String.class,
+            Path.class,
+            DownloadOptions.class,
+            tracker.getClass(),
+            AtomicBoolean.class);
+    method.setAccessible(true);
+    try {
+      method.invoke(transferClient, itemId, target, options, tracker, cancelled);
+    } catch (java.lang.reflect.InvocationTargetException e) {
+      if (e.getCause() instanceof RuntimeException runtimeException) {
+        throw runtimeException;
+      }
+      throw e;
+    }
+  }
+
+  private static void invokeTrackerMethod(Object tracker, String methodName, Object... args)
+      throws Exception {
+    Class<?>[] parameterTypes =
+        java.util.Arrays.stream(args)
+            .map(Object::getClass)
+            .map(TransferClientTest::unbox)
+            .toArray(Class<?>[]::new);
+    var method = tracker.getClass().getDeclaredMethod(methodName, parameterTypes);
+    method.setAccessible(true);
+    method.invoke(tracker, args);
+  }
+
+  private static TransferProgress snapshot(Object tracker) throws Exception {
+    var method = tracker.getClass().getDeclaredMethod("snapshot");
+    method.setAccessible(true);
+    return (TransferProgress) method.invoke(tracker);
+  }
+
+  private static Class<?> unbox(Class<?> type) {
+    if (type == Long.class) {
+      return long.class;
+    }
+    return type;
   }
 
   private static final class TrackingExecutor extends AbstractExecutorService {

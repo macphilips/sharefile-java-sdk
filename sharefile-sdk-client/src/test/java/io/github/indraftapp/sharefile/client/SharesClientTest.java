@@ -1,6 +1,7 @@
 package io.github.indraftapp.sharefile.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.indraftapp.sharefile.core.model.Contact;
@@ -45,8 +46,20 @@ class SharesClientTest {
           ClientTestSupport.BASE_URL + "/Shares", transport.requests.get(1).uri().toString());
       assertTrue(transport.requests.get(0).body().contains("\"ShareType\":\"Send\""));
       assertTrue(transport.requests.get(0).body().contains("\"Items\":[{\"Id\":\"item-1\"}]"));
+      assertTrue(
+          transport
+              .requests
+              .get(0)
+              .body()
+              .contains("\"Recipients\":[{\"User\":{\"Email\":\"a@example.com\"}}]"));
       assertTrue(transport.requests.get(1).body().contains("\"ShareType\":\"Request\""));
       assertTrue(transport.requests.get(1).body().contains("\"Parent\":{\"Id\":\"folder-1\"}"));
+      assertTrue(
+          transport
+              .requests
+              .get(1)
+              .body()
+              .contains("\"Recipients\":[{\"User\":{\"Email\":\"b@example.com\"}}]"));
     }
   }
 
@@ -97,6 +110,26 @@ class SharesClientTest {
       assertEquals(
           ClientTestSupport.BASE_URL + "/Shares(share-1)/Download?redirect=false",
           transport.requests.get(4).uri().toString());
+    }
+  }
+
+  @Test
+  void updateOmitsUnsetNullFieldsFromPatchPayload() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.Share\",\"Id\":\"share-1\",\"Title\":\"Updated\"}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      Share share = new Share();
+      share.setTitle("Updated");
+
+      Share updated = context.sharesClient().update("share-1", share);
+
+      assertEquals("Updated", updated.getTitle());
+      assertEquals("PATCH", transport.getLastRequest().method());
+      assertTrue(transport.getLastRequest().body().contains("\"Title\":\"Updated\""));
+      assertFalse(transport.getLastRequest().body().contains("\"Body\":null"));
     }
   }
 }

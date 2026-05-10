@@ -15,7 +15,8 @@ import lombok.Setter;
 @Setter
 public class RequestShareRequest {
 
-  @JsonProperty("Recipients")
+  @Getter(AccessLevel.NONE)
+  @Setter(AccessLevel.NONE)
   private List<String> recipients;
 
   @JsonProperty("Subject")
@@ -59,6 +60,14 @@ public class RequestShareRequest {
     return new ParentReference(folderID);
   }
 
+  @JsonProperty("Recipients")
+  public List<ShareRecipient> getSerializedRecipients() {
+    if (recipients == null) {
+      return null;
+    }
+    return recipients.stream().map(ShareRecipient::fromEmail).toList();
+  }
+
   @JsonIgnore
   public String getFolderID() {
     return folderID;
@@ -66,6 +75,15 @@ public class RequestShareRequest {
 
   public void setFolderID(String folderID) {
     this.folderID = folderID;
+  }
+
+  @JsonIgnore
+  public List<String> getRecipients() {
+    return recipients;
+  }
+
+  public void setRecipients(List<String> recipients) {
+    this.recipients = recipients;
   }
 
   /** Minimal parent reference shape required by request-share creation. */

@@ -17,6 +17,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -460,7 +461,8 @@ public final class TokenManager implements AutoCloseable {
         formBody.add("username=" + encode(credentials.username()));
         formBody.add("password=" + encode(credentials.password()));
       }
-      case AUTHORIZATION_CODE -> formBody.add("code=" + encode(credentials.authorizationCode()));
+      case AUTHORIZATION_CODE ->
+          formBody.add("code=" + encode(resolveAuthorizationCode(credentials)));
       default ->
           throw new ShareFileAuthenticationException(
               "Unsupported grant type: " + credentials.grantType());
@@ -508,6 +510,39 @@ public final class TokenManager implements AutoCloseable {
     } catch (Exception e) {
       throw new ShareFileAuthenticationException("Token request failed", e);
     }
+  }
+
+  private String resolveAuthorizationCode(Credentials credentials) {
+    if (credentials.authorizationCodeRedirectUri() == null) {
+      return credentials.authorizationCode();
+    }
+
+    URI redirectUri = URI.create(credentials.authorizationCodeRedirectUri());
+    HmacValidator.validate(redirectUri, credentials.clientSecret());
+    String code = extractQueryParam(redirectUri, "code");
+    if (code == null || code.isBlank()) {
+      throw new ShareFileAuthenticationException(
+          "Authorization redirect URI did not contain a code parameter");
+    }
+    return code;
+  }
+
+  private static String extractQueryParam(URI uri, String paramName) {
+    String rawQuery = uri.getRawQuery();
+    if (rawQuery == null || rawQuery.isBlank()) {
+      return null;
+    }
+
+    for (String pair : rawQuery.split("&")) {
+      int equalsIndex = pair.indexOf('=');
+      String key = equalsIndex >= 0 ? pair.substring(0, equalsIndex) : pair;
+      if (!paramName.equals(key)) {
+        continue;
+      }
+      String value = equalsIndex >= 0 ? pair.substring(equalsIndex + 1) : "";
+      return URLDecoder.decode(value, StandardCharsets.UTF_8);
+    }
+    return null;
   }
 
   private void applyToken(OAuthToken token) {

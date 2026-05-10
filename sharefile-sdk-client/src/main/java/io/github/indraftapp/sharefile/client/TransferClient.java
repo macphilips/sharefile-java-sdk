@@ -43,6 +43,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
@@ -274,6 +276,7 @@ public final class TransferClient {
       DownloadOptions options,
       ProgressTracker tracker,
       AtomicBoolean cancelled) {
+    ensureNotCancelled(cancelled, tracker);
     DownloadSpecification specification = resolveDownloadUrl(itemId, options);
     downloadToTarget(requireDownloadUri(specification), target, options, tracker, cancelled);
     return target;
@@ -286,6 +289,7 @@ public final class TransferClient {
       ProgressTracker tracker,
       AtomicBoolean cancelled) {
     Objects.requireNonNull(target, "target must not be null");
+    ensureNotCancelled(cancelled, tracker);
     tracker.start();
     metrics.incrementCounter(MetricNames.TRANSFER_ACTIVE, "type", "download", "event", "start");
     log.info("Starting download to {}", target);
@@ -499,7 +503,7 @@ public final class TransferClient {
             : 0;
     tracker.setTotalChunks(totalChunks);
     for (int i = 0; i < startChunk; i++) {
-      tracker.markChunkCompleted();
+      tracker.markChunkCompleted(chunkLength(chunkSize, fileSize, i));
     }
 
     ExecutorService executor =
@@ -555,19 +559,16 @@ public final class TransferClient {
       ProgressTracker tracker,
       AtomicBoolean cancelled) {
     long offset = (long) chunkIndex * chunkSize;
+    long chunkLength = chunkLength(chunkSize, fileSize, chunkIndex);
     for (int attempt = 0; attempt <= retryConfig.getMaxRetries(); attempt++) {
       ensureNotCancelled(cancelled, tracker);
-      try (InputStream stream =
-          new ProgressInputStream(
-              openChunkStream(file, offset, Math.min(chunkSize, fileSize - offset)),
-              tracker,
-              cancelled)) {
+      try (InputStream stream = openChunkStream(file, offset, chunkLength)) {
         HttpTransport.HttpRequest request =
             newStorageRequest(
                 "POST",
                 URI.create(specification.getChunkUri()),
                 stream,
-                OptionalLong.of(Math.min(chunkSize, fileSize - offset)),
+                OptionalLong.of(chunkLength),
                 config.getUploadTimeout());
         try (HttpTransport.HttpResponse response = storageTransport.execute(request)) {
           int status = response.statusCode();
@@ -579,7 +580,7 @@ public final class TransferClient {
               responseBody.length == 0
                   ? new ChunkResult()
                   : objectMapper.readValue(responseBody, ChunkResult.class);
-          tracker.markChunkCompleted();
+          tracker.markChunkCompleted(chunkLength);
           return result;
         }
       } catch (ShareFileTransferCancelledException e) {
@@ -786,6 +787,11 @@ public final class TransferClient {
     }
   }
 
+  private static long chunkLength(int chunkSize, long fileSize, int chunkIndex) {
+    long offset = (long) chunkIndex * chunkSize;
+    return Math.min(chunkSize, fileSize - offset);
+  }
+
   private static final class ProgressInputStream extends FilterInputStream {
     private final ProgressTracker tracker;
     private final AtomicBoolean cancelled;
@@ -818,6 +824,7 @@ public final class TransferClient {
   }
 
   private static final class ProgressTracker {
+    private final AtomicLong bytesTransferred = new AtomicLong();
     private final AtomicReference<TransferProgress> progress =
         new AtomicReference<>(
             new TransferProgress(0L, 0L, Duration.ZERO, TransferState.PENDING, 0, 0));
@@ -825,7 +832,7 @@ public final class TransferClient {
     private final TransferProgressListener listener;
     private volatile Instant startedAt = Instant.now();
     private volatile int totalChunks;
-    private volatile int chunksCompleted;
+    private final AtomicInteger chunksCompleted = new AtomicInteger();
 
     ProgressTracker(long totalBytes, TransferProgressListener listener) {
       this.totalBytes = Math.max(0L, totalBytes);
@@ -835,33 +842,33 @@ public final class TransferClient {
 
     void start() {
       startedAt = Instant.now();
-      update(progress.get().getBytesTransferred(), TransferState.IN_PROGRESS);
+      update(bytesTransferred.get(), TransferState.IN_PROGRESS);
     }
 
     void addBytes(long delta) {
-      update(progress.get().getBytesTransferred() + delta, TransferState.IN_PROGRESS);
+      update(bytesTransferred.addAndGet(delta), TransferState.IN_PROGRESS);
     }
 
     void setTotalChunks(int totalChunks) {
       this.totalChunks = totalChunks;
-      update(progress.get().getBytesTransferred(), progress.get().getState());
+      update(bytesTransferred.get(), progress.get().getState());
     }
 
-    void markChunkCompleted() {
-      chunksCompleted++;
-      update(progress.get().getBytesTransferred(), progress.get().getState());
+    void markChunkCompleted(long committedBytes) {
+      chunksCompleted.incrementAndGet();
+      update(bytesTransferred.addAndGet(committedBytes), progress.get().getState());
     }
 
     void complete() {
-      update(progress.get().getBytesTransferred(), TransferState.COMPLETED);
+      update(bytesTransferred.get(), TransferState.COMPLETED);
     }
 
     void fail() {
-      update(progress.get().getBytesTransferred(), TransferState.FAILED);
+      update(bytesTransferred.get(), TransferState.FAILED);
     }
 
     void cancel() {
-      update(progress.get().getBytesTransferred(), TransferState.CANCELLED);
+      update(bytesTransferred.get(), TransferState.CANCELLED);
     }
 
     TransferProgress snapshot() {
@@ -879,7 +886,7 @@ public final class TransferClient {
               totalBytes,
               Duration.between(startedAt, Instant.now()),
               state,
-              chunksCompleted,
+              chunksCompleted.get(),
               totalChunks);
       progress.set(snapshot);
       if (listener != null) {

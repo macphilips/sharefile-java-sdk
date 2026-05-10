@@ -365,6 +365,8 @@ class ItemsClientTest {
       assertEquals(
           ClientTestSupport.BASE_URL + "/Items(file-1)",
           transport.getLastRequest().uri().toString());
+      assertTrue(transport.getLastRequest().body().contains("\"Name\":\"renamed.txt\""));
+      assertFalse(transport.getLastRequest().body().contains("\"Description\":null"));
     }
   }
 
