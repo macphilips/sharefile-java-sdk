@@ -63,14 +63,15 @@ public final class TokenManager implements AutoCloseable {
   private static final double PROACTIVE_REFRESH_RATIO = 0.80;
 
   private final ShareFileConfig config;
-  private final String clientId;
-  private final String clientSecret;
   private final CredentialProvider credentialProvider;
   private final HttpTransport transport;
   private final TokenStore tokenStore;
   private final ObjectMapper objectMapper;
   private final MetricsProvider metrics;
+  private volatile String clientId;
+  private volatile String clientSecret;
   private volatile OAuthToken currentToken;
+  private volatile boolean trustCurrentTokenWithoutExpiry;
   private final ReentrantReadWriteLock tokenLock = new ReentrantReadWriteLock();
   private final ScheduledExecutorService scheduler;
   private volatile ScheduledFuture<?> scheduledRefresh;
@@ -86,6 +87,28 @@ public final class TokenManager implements AutoCloseable {
    * @param tokenStore token persistence backend
    * @param objectMapper Jackson ObjectMapper for parsing token responses
    */
+  public TokenManager(
+      ShareFileConfig config,
+      String clientId,
+      String clientSecret,
+      CredentialProvider credentialProvider,
+      HttpTransport transport,
+      TokenStore tokenStore,
+      ObjectMapper objectMapper,
+      OAuthToken initialToken) {
+    this(
+        config,
+        clientId,
+        clientSecret,
+        credentialProvider,
+        transport,
+        tokenStore,
+        objectMapper,
+        MetricsProvider.noop(),
+        initialToken,
+        true);
+  }
+
   public TokenManager(
       ShareFileConfig config,
       String clientId,
@@ -114,15 +137,141 @@ public final class TokenManager implements AutoCloseable {
       TokenStore tokenStore,
       ObjectMapper objectMapper,
       MetricsProvider metrics) {
+    this(
+        config,
+        clientId,
+        clientSecret,
+        credentialProvider,
+        transport,
+        tokenStore,
+        objectMapper,
+        metrics,
+        null,
+        true);
+  }
+
+  public TokenManager(
+      ShareFileConfig config,
+      CredentialProvider credentialProvider,
+      HttpTransport transport,
+      TokenStore tokenStore,
+      ObjectMapper objectMapper) {
+    this(
+        config,
+        null,
+        null,
+        credentialProvider,
+        transport,
+        tokenStore,
+        objectMapper,
+        MetricsProvider.noop(),
+        null,
+        true);
+  }
+
+  public TokenManager(
+      ShareFileConfig config,
+      CredentialProvider credentialProvider,
+      HttpTransport transport,
+      TokenStore tokenStore,
+      ObjectMapper objectMapper,
+      MetricsProvider metrics) {
+    this(
+        config,
+        null,
+        null,
+        credentialProvider,
+        transport,
+        tokenStore,
+        objectMapper,
+        metrics,
+        null,
+        true);
+  }
+
+  public TokenManager(
+      ShareFileConfig config,
+      CredentialProvider credentialProvider,
+      HttpTransport transport,
+      TokenStore tokenStore,
+      ObjectMapper objectMapper,
+      OAuthToken initialToken) {
+    this(
+        config,
+        null,
+        null,
+        credentialProvider,
+        transport,
+        tokenStore,
+        objectMapper,
+        MetricsProvider.noop(),
+        initialToken,
+        true);
+  }
+
+  public TokenManager(
+      ShareFileConfig config,
+      String clientId,
+      String clientSecret,
+      CredentialProvider credentialProvider,
+      HttpTransport transport,
+      TokenStore tokenStore,
+      ObjectMapper objectMapper,
+      MetricsProvider metrics,
+      OAuthToken initialToken) {
+    this(
+        config,
+        clientId,
+        clientSecret,
+        credentialProvider,
+        transport,
+        tokenStore,
+        objectMapper,
+        metrics,
+        initialToken,
+        true);
+  }
+
+  public TokenManager(
+      ShareFileConfig config,
+      CredentialProvider credentialProvider,
+      HttpTransport transport,
+      TokenStore tokenStore,
+      ObjectMapper objectMapper,
+      MetricsProvider metrics,
+      OAuthToken initialToken) {
+    this(
+        config,
+        null,
+        null,
+        credentialProvider,
+        transport,
+        tokenStore,
+        objectMapper,
+        metrics,
+        initialToken,
+        true);
+  }
+
+  private TokenManager(
+      ShareFileConfig config,
+      String clientId,
+      String clientSecret,
+      CredentialProvider credentialProvider,
+      HttpTransport transport,
+      TokenStore tokenStore,
+      ObjectMapper objectMapper,
+      MetricsProvider metrics,
+      OAuthToken initialToken,
+      boolean unused) {
     this.config = Objects.requireNonNull(config, "config must not be null");
-    this.clientId = Objects.requireNonNull(clientId, "clientId must not be null");
-    this.clientSecret = Objects.requireNonNull(clientSecret, "clientSecret must not be null");
     this.credentialProvider =
         Objects.requireNonNull(credentialProvider, "credentialProvider must not be null");
     this.transport = Objects.requireNonNull(transport, "transport must not be null");
     this.tokenStore = Objects.requireNonNull(tokenStore, "tokenStore must not be null");
     this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
     this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
+    cacheClientCredentials(clientId, clientSecret);
 
     ScheduledThreadPoolExecutor exec =
         new ScheduledThreadPoolExecutor(
@@ -147,66 +296,15 @@ public final class TokenManager implements AutoCloseable {
                 scheduleProactiveRefresh(token);
               }
             });
-  }
-
-  /**
-   * Creates a TokenManager with a pre-existing token (e.g., from {@code accessToken()} builder
-   * method).
-   *
-   * @param config SDK configuration
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @param credentialProvider fallback credential provider
-   * @param transport raw HTTP transport
-   * @param tokenStore token persistence backend
-   * @param objectMapper Jackson ObjectMapper
-   * @param initialToken pre-existing OAuth token
-   */
-  public TokenManager(
-      ShareFileConfig config,
-      String clientId,
-      String clientSecret,
-      CredentialProvider credentialProvider,
-      HttpTransport transport,
-      TokenStore tokenStore,
-      ObjectMapper objectMapper,
-      OAuthToken initialToken) {
-    this(
-        config,
-        clientId,
-        clientSecret,
-        credentialProvider,
-        transport,
-        tokenStore,
-        objectMapper,
-        MetricsProvider.noop(),
-        initialToken);
-  }
-
-  public TokenManager(
-      ShareFileConfig config,
-      String clientId,
-      String clientSecret,
-      CredentialProvider credentialProvider,
-      HttpTransport transport,
-      TokenStore tokenStore,
-      ObjectMapper objectMapper,
-      MetricsProvider metrics,
-      OAuthToken initialToken) {
-    this(
-        config,
-        clientId,
-        clientSecret,
-        credentialProvider,
-        transport,
-        tokenStore,
-        objectMapper,
-        metrics);
     if (initialToken != null) {
       if (initialToken.getExpiresAt() == null && initialToken.getExpiresIn() != null) {
         initialToken.computeExpiresAt();
       }
       this.currentToken = initialToken;
+      this.trustCurrentTokenWithoutExpiry =
+          initialToken.getExpiresAt() == null
+              && initialToken.getAccessToken() != null
+              && !initialToken.getAccessToken().isBlank();
       tokenStore.save(initialToken);
       scheduleProactiveRefresh(initialToken);
     }
@@ -279,6 +377,20 @@ public final class TokenManager implements AutoCloseable {
     }
   }
 
+  /** Returns the remaining lifetime of the current access token in whole seconds. */
+  public long getSecondsUntilExpiry() {
+    tokenLock.readLock().lock();
+    try {
+      if (currentToken == null || currentToken.getExpiresAt() == null) {
+        return 0L;
+      }
+      return Math.max(
+          0L, Duration.between(java.time.Instant.now(), currentToken.getExpiresAt()).getSeconds());
+    } finally {
+      tokenLock.readLock().unlock();
+    }
+  }
+
   @Override
   public void close() {
     if (scheduledRefresh != null) {
@@ -318,10 +430,11 @@ public final class TokenManager implements AutoCloseable {
    * call CredentialProvider.resolve().
    */
   private OAuthToken performRefreshTokenGrant() {
+    ClientCredentialsPair clientCredentials = resolveClientCredentialsForRefresh();
     StringJoiner formBody = new StringJoiner("&");
     formBody.add("grant_type=" + encode(GrantType.REFRESH_TOKEN.getValue()));
-    formBody.add("client_id=" + encode(clientId));
-    formBody.add("client_secret=" + encode(clientSecret));
+    formBody.add("client_id=" + encode(clientCredentials.clientId()));
+    formBody.add("client_secret=" + encode(clientCredentials.clientSecret()));
     formBody.add("refresh_token=" + encode(currentToken.getRefreshToken()));
 
     return executeTokenRequest(formBody.toString());
@@ -335,6 +448,7 @@ public final class TokenManager implements AutoCloseable {
     } catch (CredentialResolutionException e) {
       throw new ShareFileAuthenticationException("Failed to resolve credentials", e);
     }
+    cacheClientCredentials(credentials.clientId(), credentials.clientSecret());
 
     StringJoiner formBody = new StringJoiner("&");
     formBody.add("grant_type=" + encode(credentials.grantType().getValue()));
@@ -398,6 +512,7 @@ public final class TokenManager implements AutoCloseable {
 
   private void applyToken(OAuthToken token) {
     this.currentToken = token;
+    this.trustCurrentTokenWithoutExpiry = false;
     tokenStore.save(token);
     if (token.getExpiresAt() != null) {
       long secondsRemaining =
@@ -531,8 +646,40 @@ public final class TokenManager implements AutoCloseable {
     return Math.max(0L, Math.min(ratioDelaySeconds, bufferDelaySeconds));
   }
 
-  private static boolean hasUsableAccessToken(OAuthToken token) {
-    return token != null && token.getExpiresAt() != null && !token.isExpired();
+  private boolean hasUsableAccessToken(OAuthToken token) {
+    if (token == null || token.getAccessToken() == null || token.getAccessToken().isBlank()) {
+      return false;
+    }
+    if (token.getExpiresAt() != null) {
+      return !token.isExpired();
+    }
+    return trustCurrentTokenWithoutExpiry && token == currentToken;
+  }
+
+  private ClientCredentialsPair resolveClientCredentialsForRefresh() {
+    if (clientId != null && clientSecret != null) {
+      return new ClientCredentialsPair(clientId, clientSecret);
+    }
+
+    Credentials credentials;
+    try {
+      credentials = credentialProvider.resolve();
+    } catch (CredentialResolutionException e) {
+      throw new ShareFileAuthenticationException(
+          "Failed to resolve client credentials required for token refresh", e);
+    }
+
+    cacheClientCredentials(credentials.clientId(), credentials.clientSecret());
+    return new ClientCredentialsPair(credentials.clientId(), credentials.clientSecret());
+  }
+
+  private void cacheClientCredentials(String clientId, String clientSecret) {
+    if (clientId != null) {
+      this.clientId = Objects.requireNonNull(clientId, "clientId must not be null");
+    }
+    if (clientSecret != null) {
+      this.clientSecret = Objects.requireNonNull(clientSecret, "clientSecret must not be null");
+    }
   }
 
   private static void sleepForRetry(Duration duration) {
@@ -543,4 +690,6 @@ public final class TokenManager implements AutoCloseable {
       throw new ShareFileAuthenticationException("Interrupted during token refresh retry", e);
     }
   }
+
+  private record ClientCredentialsPair(String clientId, String clientSecret) {}
 }

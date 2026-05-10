@@ -40,6 +40,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -58,6 +59,7 @@ public final class TransferClient {
   private final ShareFileConfig config;
   private final RetryConfig retryConfig;
   private final MetricsProvider metrics;
+  private final ExecutorService asyncExecutor;
   private final ResourceRequestExecutor itemsExecutor;
   private final ResourceRequestExecutor sharesExecutor;
 
@@ -68,6 +70,17 @@ public final class TransferClient {
       ShareFileConfig config,
       RetryConfig retryConfig,
       MetricsProvider metrics) {
+    this(httpClient, storageTransport, objectMapper, config, retryConfig, metrics, null);
+  }
+
+  TransferClient(
+      ShareFileHttpClient httpClient,
+      HttpTransport storageTransport,
+      ObjectMapper objectMapper,
+      ShareFileConfig config,
+      RetryConfig retryConfig,
+      MetricsProvider metrics,
+      ExecutorService asyncExecutor) {
     this.httpClient = Objects.requireNonNull(httpClient, "httpClient must not be null");
     this.storageTransport =
         Objects.requireNonNull(storageTransport, "storageTransport must not be null");
@@ -75,6 +88,7 @@ public final class TransferClient {
     this.config = Objects.requireNonNull(config, "config must not be null");
     this.retryConfig = Objects.requireNonNull(retryConfig, "retryConfig must not be null");
     this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
+    this.asyncExecutor = asyncExecutor == null ? ForkJoinPool.commonPool() : asyncExecutor;
     this.itemsExecutor = new ResourceRequestExecutor(httpClient, "/Items");
     this.sharesExecutor = new ResourceRequestExecutor(httpClient, "/Shares");
   }
@@ -147,7 +161,8 @@ public final class TransferClient {
                     estimateSize(file),
                     resolvedOptions,
                     tracker,
-                    cancelled));
+                    cancelled),
+            asyncExecutor);
     return new UploadHandle(future, tracker.ref(), cancelled);
   }
 
@@ -167,7 +182,8 @@ public final class TransferClient {
                     estimateSize(file),
                     resolvedOptions,
                     tracker,
-                    cancelled));
+                    cancelled),
+            asyncExecutor);
     return new UploadHandle(future, tracker.ref(), cancelled);
   }
 
@@ -233,7 +249,8 @@ public final class TransferClient {
     ProgressTracker tracker = new ProgressTracker(0L, resolvedOptions.getProgressListener());
     CompletableFuture<Path> future =
         CompletableFuture.supplyAsync(
-            () -> downloadInternal(itemId, target, resolvedOptions, tracker, cancelled));
+            () -> downloadInternal(itemId, target, resolvedOptions, tracker, cancelled),
+            asyncExecutor);
     return new DownloadHandle(future, tracker.ref(), cancelled);
   }
 

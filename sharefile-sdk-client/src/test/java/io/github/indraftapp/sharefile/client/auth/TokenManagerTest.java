@@ -422,6 +422,30 @@ class TokenManagerTest {
   }
 
   @Test
+  void preExistingTokenWithoutExpiryIsTrustedInMemory() {
+    OAuthToken preExisting = new OAuthToken();
+    preExisting.setAccessToken("seeded-access-token");
+    preExisting.setRefreshToken("seeded-refresh-token");
+
+    tokenManager =
+        new TokenManager(
+            config,
+            CLIENT_ID,
+            CLIENT_SECRET,
+            credentialProvider,
+            mockTransport,
+            tokenStore,
+            OBJECT_MAPPER,
+            preExisting);
+
+    String token = tokenManager.getAccessToken();
+
+    assertEquals("seeded-access-token", token);
+    assertEquals(0, mockTransport.requests.size());
+    assertEquals(0, credentialProvider.callCount.get());
+  }
+
+  @Test
   void refreshAccessTokenBypassesValidCachedToken() {
     OAuthToken preExisting = new OAuthToken();
     preExisting.setAccessToken("still-valid");
@@ -479,6 +503,31 @@ class TokenManagerTest {
     long delaySeconds = scheduledRefresh.getDelay(TimeUnit.SECONDS);
     assertTrue(delaySeconds <= 70, "Expected refresh delay to honor 30s buffer");
     assertTrue(delaySeconds >= 67, "Unexpectedly short delay: " + delaySeconds);
+  }
+
+  @Test
+  void dynamicProviderCanSupplyClientCredentialsForRefreshWhenNotSeededAtConstruction() {
+    OAuthToken expired = new OAuthToken();
+    expired.setAccessToken("expired-access");
+    expired.setRefreshToken("cached-refresh");
+    expired.setExpiresIn(3600L);
+    expired.setExpiresAt(Instant.now().minusSeconds(60));
+    tokenStore.save(expired);
+
+    mockTransport.enqueueTokenResponse("new-access", "new-refresh", 3600);
+
+    tokenManager =
+        new TokenManager(
+            config, credentialProvider, mockTransport, tokenStore, OBJECT_MAPPER, expired);
+
+    String token = tokenManager.getAccessToken();
+
+    assertEquals("new-access", token);
+    assertEquals(1, credentialProvider.callCount.get());
+    assertEquals(1, mockTransport.requests.size());
+    assertTrue(mockTransport.requests.get(0).body.contains("grant_type=refresh_token"));
+    assertTrue(mockTransport.requests.get(0).body.contains("client_id=test-client-id"));
+    assertTrue(mockTransport.requests.get(0).body.contains("client_secret=test-client-secret"));
   }
 
   // ── Close/lifecycle tests ─────────────────────────────────────────────

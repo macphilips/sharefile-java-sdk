@@ -7,14 +7,20 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.indraftapp.sharefile.client.internal.RecordingMetricsProvider;
+import io.github.indraftapp.sharefile.client.internal.ShareFileHttpClient;
+import io.github.indraftapp.sharefile.client.retry.RetryConfig;
+import io.github.indraftapp.sharefile.client.spi.MetricsProvider;
 import io.github.indraftapp.sharefile.core.exception.ShareFileDownloadUrlExpiredException;
 import io.github.indraftapp.sharefile.core.model.enums.UploadMethod;
 import io.github.indraftapp.sharefile.core.model.response.UploadResult;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -258,6 +264,98 @@ class TransferClientTest {
       assertEquals("item-4", result.getItemId());
       assertFalse(progressEvents.isEmpty());
       assertEquals(TransferState.COMPLETED, handle.progress().getState());
+    }
+  }
+
+  @Test
+  void asyncWrappersUseInjectedExecutor() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Streamed",
+          "ChunkUri": "https://storage.example.com/upload"
+        }
+        """);
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "ItemId": "item-5",
+          "FileName": "executor.txt",
+          "FileSize": 4
+        }
+        """);
+
+    Path file = Files.writeString(tempDir.resolve("executor.txt"), "data", StandardCharsets.UTF_8);
+    RetryConfig retryConfig = RetryConfig.builder().maxRetries(0).build();
+    TrackingExecutor executor = new TrackingExecutor();
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      ShareFileHttpClient httpClient =
+          new ShareFileHttpClient(
+              transport,
+              context.tokenManager(),
+              ClientTestSupport.MAPPER,
+              retryConfig,
+              MetricsProvider.noop(),
+              ClientTestSupport.BASE_URL,
+              Duration.ofSeconds(30));
+      TransferClient transferClient =
+          new TransferClient(
+              httpClient,
+              transport,
+              ClientTestSupport.MAPPER,
+              io.github.indraftapp.sharefile.client.config.ShareFileConfig.builder()
+                  .subdomain("testco")
+                  .build(),
+              retryConfig,
+              MetricsProvider.noop(),
+              executor);
+
+      UploadHandle handle = transferClient.uploadAsync("folder-1", file, UploadOptions.defaults());
+      UploadResult result = handle.awaitOrThrow(Duration.ofSeconds(5));
+
+      assertEquals("item-5", result.getItemId());
+      assertTrue(executor.submissions > 0);
+    }
+  }
+
+  private static final class TrackingExecutor extends AbstractExecutorService {
+    private boolean shutdown;
+    private int submissions;
+
+    @Override
+    public void shutdown() {
+      shutdown = true;
+    }
+
+    @Override
+    public List<Runnable> shutdownNow() {
+      shutdown = true;
+      return List.of();
+    }
+
+    @Override
+    public boolean isShutdown() {
+      return shutdown;
+    }
+
+    @Override
+    public boolean isTerminated() {
+      return shutdown;
+    }
+
+    @Override
+    public boolean awaitTermination(long timeout, TimeUnit unit) {
+      return true;
+    }
+
+    @Override
+    public void execute(Runnable command) {
+      submissions++;
+      command.run();
     }
   }
 }
