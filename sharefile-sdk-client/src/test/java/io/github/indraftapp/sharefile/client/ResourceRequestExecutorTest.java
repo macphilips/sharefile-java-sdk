@@ -2,6 +2,7 @@ package io.github.indraftapp.sharefile.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.HashMap;
 import org.junit.jupiter.api.Test;
 
 class ResourceRequestExecutorTest {
@@ -30,6 +31,19 @@ class ResourceRequestExecutorTest {
       assertEquals(
           "/Items(principalid=user-1,itemid=item-2)",
           executor.compositeKeyUri("principalid=user-1", "itemid=item-2").toString());
+    }
+  }
+
+  @Test
+  void compositeKeyUriMapUsesODataCompositeKeyFormat() {
+    try (ClientTestSupport.TestContext context =
+        ClientTestSupport.createContext(new ClientTestSupport.TestTransport())) {
+      ResourceRequestExecutor executor = context.executor();
+      HashMap<String, String> keys = new HashMap<>();
+      keys.put("itemid", "item-2");
+      keys.put("principalid", "user-1");
+      assertEquals(
+          "/Items(itemid=item-2,principalid=user-1)", executor.compositeKeyUri(keys).toString());
     }
   }
 }

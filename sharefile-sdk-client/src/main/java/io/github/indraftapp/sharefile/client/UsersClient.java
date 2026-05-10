@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.github.indraftapp.sharefile.client.internal.ShareFileHttpClient;
 import io.github.indraftapp.sharefile.core.exception.ShareFileNotFoundException;
 import io.github.indraftapp.sharefile.core.model.Group;
+import io.github.indraftapp.sharefile.core.model.Item;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
 import io.github.indraftapp.sharefile.core.model.User;
 import io.github.indraftapp.sharefile.core.model.response.UserPreferences;
@@ -17,6 +18,7 @@ public final class UsersClient {
 
   private static final TypeReference<ODataFeed<User>> USER_FEED_TYPE = new TypeReference<>() {};
   private static final TypeReference<ODataFeed<Group>> GROUP_FEED_TYPE = new TypeReference<>() {};
+  private static final TypeReference<ODataFeed<Item>> ITEM_FEED_TYPE = new TypeReference<>() {};
 
   private final ResourceRequestExecutor executor;
 
@@ -100,5 +102,10 @@ public final class UsersClient {
   public ODataFeed<Group> getGroups(String userId) {
     return executor.getCollection(
         executor.entityActionUri(userId, "Groups"), ODataQuery.empty(), GROUP_FEED_TYPE);
+  }
+
+  public ODataFeed<Item> getAllSharedFolders() {
+    return executor.getCollection(
+        executor.entityActionUri("AllSharedFolders"), ODataQuery.empty(), ITEM_FEED_TYPE);
   }
 }

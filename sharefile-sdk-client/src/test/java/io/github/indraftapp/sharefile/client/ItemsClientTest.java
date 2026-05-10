@@ -3,6 +3,7 @@ package io.github.indraftapp.sharefile.client;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.indraftapp.sharefile.client.retry.RetryConfig;
@@ -10,10 +11,14 @@ import io.github.indraftapp.sharefile.client.retry.RetryPolicy;
 import io.github.indraftapp.sharefile.core.model.Item;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
 import io.github.indraftapp.sharefile.core.model.OperationResult;
+import io.github.indraftapp.sharefile.core.model.enums.DlpStatus;
+import io.github.indraftapp.sharefile.core.model.enums.ItemOrderingMode;
+import io.github.indraftapp.sharefile.core.model.enums.TreeMode;
 import io.github.indraftapp.sharefile.core.model.request.FolderCreateRequest;
 import io.github.indraftapp.sharefile.core.model.response.SearchResults;
 import io.github.indraftapp.sharefile.core.odata.Filter;
 import io.github.indraftapp.sharefile.core.odata.ODataQuery;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -70,6 +75,35 @@ class ItemsClientTest {
   }
 
   @Test
+  void getByIdSupportsNonODataItemQueryParameters() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.Folder\",\"Id\":\"item-1\",\"Name\":\"Docs\"}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      Item item =
+          context
+              .itemsClient()
+              .getById(
+                  "item-1",
+                  ItemQuery.builder()
+                      .includeDeleted(false)
+                      .treeMode(TreeMode.COPY)
+                      .sourceId("source-9")
+                      .canCreateRootFolder(false)
+                      .build());
+
+      assertEquals("Docs", item.getName());
+      assertEquals(
+          ClientTestSupport.BASE_URL
+              + "/Items(item-1)?includeDeleted=false&treemode=Copy&sourceId=source-9"
+              + "&canCreateRootFolder=false",
+          transport.getLastRequest().uri().toString());
+    }
+  }
+
+  @Test
   void getByPathEncodesExplicitPathParameter() {
     ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
     transport.enqueueJsonResponse(
@@ -83,6 +117,31 @@ class ItemsClientTest {
       String uri = transport.getLastRequest().uri().toString();
       assertTrue(uri.startsWith(ClientTestSupport.BASE_URL + "/Items/ByPath?"));
       assertTrue(uri.contains("path=%2FShared%20Documents%2FQuarterly%20Reports"));
+    }
+  }
+
+  @Test
+  void getByPathMergesPathAndAdditionalItemQueryParameters() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.Folder\",\"Id\":\"folder-1\",\"Name\":\"Reports\"}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      Item item =
+          context
+              .itemsClient()
+              .getByPath(
+                  ItemQuery.builder()
+                      .path("/folder1/folder2/folder3")
+                      .includeDeleted(false)
+                      .build());
+
+      assertEquals("Reports", item.getName());
+      assertEquals(
+          ClientTestSupport.BASE_URL
+              + "/Items/ByPath?path=%2Ffolder1%2Ffolder2%2Ffolder3&includeDeleted=false",
+          transport.getLastRequest().uri().toString());
     }
   }
 
@@ -119,6 +178,33 @@ class ItemsClientTest {
   }
 
   @Test
+  void getVersionsAndChildrenSupportDocumentedItemQueryParameters() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(200, "{\"value\":[]}");
+    transport.enqueueJsonResponse(200, "{\"value\":[]}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      context.itemsClient().getVersions("file-1", ItemQuery.builder().includeDeleted(true).build());
+      context
+          .itemsClient()
+          .getChildren(
+              "folder-1",
+              ItemQuery.builder()
+                  .includeDeleted(true)
+                  .orderingMode(ItemOrderingMode.NAME_DESC)
+                  .build());
+
+      assertEquals(
+          ClientTestSupport.BASE_URL + "/Items(file-1)/Stream?includeDeleted=true",
+          transport.requests.get(0).uri().toString());
+      assertEquals(
+          ClientTestSupport.BASE_URL
+              + "/Items(folder-1)/Children?includeDeleted=true&orderingMode=NameDesc",
+          transport.requests.get(1).uri().toString());
+    }
+  }
+
+  @Test
   void searchBuildsGlobalAndScopedEndpoints() {
     ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
     transport.enqueueJsonResponse(200, "{\"Results\":[],\"TotalCount\":0,\"TimedOut\":false}");
@@ -137,6 +223,74 @@ class ItemsClientTest {
           ClientTestSupport.BASE_URL
               + "/Items(folder-99)/Search?query=budget%202026&maxResults=25&skip=10",
           transport.requests.get(1).uri().toString());
+    }
+  }
+
+  @Test
+  void searchSupportsHomeFolderOnlyThroughItemQuery() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(200, "{\"Results\":[],\"TotalCount\":0,\"TimedOut\":false}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      SearchResults results =
+          context
+              .itemsClient()
+              .search(
+                  ItemQuery.builder()
+                      .query("budget 2026")
+                      .maxResults(25)
+                      .skip(10)
+                      .homeFolderOnly(true)
+                      .build());
+
+      assertEquals(0, results.getTotalCount());
+      assertEquals(
+          ClientTestSupport.BASE_URL
+              + "/Items/Search?query=budget%202026&maxResults=25&skip=10&homeFolderOnly=true",
+          transport.getLastRequest().uri().toString());
+    }
+  }
+
+  @Test
+  void treeViewUsesDocumentedQueryParameters() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.Folder\",\"Id\":\"folder-1\",\"Name\":\"Root\"}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      Item item =
+          context
+              .itemsClient()
+              .treeView(
+                  "folder-1",
+                  ItemQuery.builder()
+                      .treeMode(TreeMode.MOVE)
+                      .sourceId("source-1")
+                      .canCreateRootFolder(true)
+                      .fileBox(false)
+                      .build());
+
+      assertEquals("Root", item.getName());
+      assertEquals(
+          ClientTestSupport.BASE_URL
+              + "/Items(folder-1)/TreeView?treemode=Move&sourceId=source-1"
+              + "&canCreateRootFolder=true&fileBox=false",
+          transport.getLastRequest().uri().toString());
+    }
+  }
+
+  @Test
+  void treeViewRequiresTreeMode() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      IllegalArgumentException exception =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> context.itemsClient().treeView("folder-1", ItemQuery.empty()));
+
+      assertTrue(exception.getMessage().contains("treemode"));
     }
   }
 
@@ -163,6 +317,26 @@ class ItemsClientTest {
       assertTrue(recorded.body().contains("\"Name\":\"New Folder\""));
       assertTrue(recorded.body().contains("\"Description\":\"Quarterly reports\""));
       assertTrue(recorded.body().contains("\"OverWrite\":true"));
+    }
+  }
+
+  @Test
+  void createFolderSupportsDocumentedQueryParameters() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.Folder\",\"Id\":\"folder-2\",\"Name\":\"New Folder\"}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      FolderCreateRequest request = new FolderCreateRequest();
+      request.setName("New Folder");
+
+      Item created = context.itemsClient().createFolder("parent-1", request, true, false);
+
+      assertEquals("New Folder", created.getName());
+      assertEquals(
+          ClientTestSupport.BASE_URL + "/Items(parent-1)/Folder?overwrite=true&passthrough=false",
+          transport.getLastRequest().uri().toString());
     }
   }
 
@@ -269,6 +443,35 @@ class ItemsClientTest {
       assertEquals(
           ClientTestSupport.BASE_URL + "/Items(file-1)/DiscardCheckOut",
           transport.requests.get(5).uri().toString());
+    }
+  }
+
+  @Test
+  void getUserDeletedItemsAndByDlpStatusUseDocumentedParameters() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(200, "{\"value\":[]}");
+    transport.enqueueJsonResponse(200, "{\"value\":[]}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      context
+          .itemsClient()
+          .getUserDeletedItems(ItemQuery.builder().userId("user-1").zone("zone-1").build());
+      context
+          .itemsClient()
+          .getByDlpStatus(
+              ItemQuery.builder()
+                  .status(DlpStatus.SCANNED_OK)
+                  .zone("zone-2")
+                  .endDate(Instant.parse("2026-05-10T00:00:00Z"))
+                  .build());
+
+      assertEquals(
+          ClientTestSupport.BASE_URL + "/Items/UserDeletedItems?userid=user-1&zone=zone-1",
+          transport.requests.get(0).uri().toString());
+      assertEquals(
+          ClientTestSupport.BASE_URL
+              + "/Items/ByDlpStatus?status=ScannedOK&zone=zone-2&enddate=2026-05-10T00%3A00%3A00Z",
+          transport.requests.get(1).uri().toString());
     }
   }
 

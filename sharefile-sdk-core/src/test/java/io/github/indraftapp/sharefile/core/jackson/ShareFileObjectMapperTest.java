@@ -14,6 +14,7 @@ import io.github.indraftapp.sharefile.core.model.Item;
 import io.github.indraftapp.sharefile.core.model.ODataEntity;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
 import io.github.indraftapp.sharefile.core.model.Share;
+import io.github.indraftapp.sharefile.core.model.enums.PreviewStatus;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -167,6 +168,42 @@ class ShareFileObjectMapperTest {
     assertThat(accessControl.getPrincipal()).isInstanceOf(Group.class);
     assertThat(((Group) accessControl.getPrincipal()).getName()).isEqualTo("Finance Team");
     assertThat(accessControl.getCanDownload()).isTrue();
+  }
+
+  @Test
+  void shouldDeserializeExtendedPreviewStatusValues() throws Exception {
+    String canDocThumbJson =
+        """
+                {
+                    "odata.type": "ShareFile.Api.Models.File",
+                    "Id": "file-1",
+                    "PreviewStatus": "CanDocThumb"
+                }
+                """;
+    String blankPreviewStatusJson =
+        """
+                {
+                    "odata.type": "ShareFile.Api.Models.File",
+                    "Id": "file-2",
+                    "PreviewStatus": ""
+                }
+                """;
+    String unknownPreviewStatusJson =
+        """
+                {
+                    "odata.type": "ShareFile.Api.Models.File",
+                    "Id": "file-3",
+                    "PreviewStatus": "FuturePreviewMode"
+                }
+                """;
+
+    Item withDocThumbnailPreview = mapper.readValue(canDocThumbJson, Item.class);
+    Item withBlankPreviewStatus = mapper.readValue(blankPreviewStatusJson, Item.class);
+    Item withUnknownPreviewStatus = mapper.readValue(unknownPreviewStatusJson, Item.class);
+
+    assertThat(withDocThumbnailPreview.getPreviewStatus()).isEqualTo(PreviewStatus.CAN_DOC_THUMB);
+    assertThat(withBlankPreviewStatus.getPreviewStatus()).isEqualTo(PreviewStatus.NONE);
+    assertThat(withUnknownPreviewStatus.getPreviewStatus()).isEqualTo(PreviewStatus.UNKNOWN);
   }
 
   private static final class PascalCasePayload {

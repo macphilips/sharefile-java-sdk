@@ -134,7 +134,10 @@ public final class AccessControlsClient {
   }
 
   private URI compositeKeyUri(String principalId, String itemId) {
-    return executor.compositeKeyUri("principalid=" + principalId, "itemid=" + itemId);
+    LinkedHashMap<String, String> keys = new LinkedHashMap<>();
+    keys.put("principalid", principalId);
+    keys.put("itemid", itemId);
+    return executor.compositeKeyUri(keys);
   }
 
   private URI itemScopedUri(String itemId) {
