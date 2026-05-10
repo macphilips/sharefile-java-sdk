@@ -1,7 +1,15 @@
 plugins {
     `java-platform`
     `maven-publish`
-    signing
+}
+
+val isPublishingToMavenLocal =
+    gradle.startParameter.taskNames.any { requestedTask ->
+        requestedTask == "publishToMavenLocal" || requestedTask.endsWith(":publishToMavenLocal")
+    }
+
+if (!isPublishingToMavenLocal) {
+    apply(plugin = "signing")
 }
 
 group = rootProject.group
@@ -45,15 +53,17 @@ publishing {
     }
 }
 
-signing {
-    val signingKey = providers.environmentVariable("GPG_SIGNING_KEY")
-    val signingPassword = providers.environmentVariable("GPG_SIGNING_PASSWORD")
-    if (signingKey.isPresent) {
-        useInMemoryPgpKeys(signingKey.get(), signingPassword.get())
+if (!isPublishingToMavenLocal) {
+    configure<SigningExtension> {
+        val signingKey = providers.environmentVariable("GPG_SIGNING_KEY")
+        val signingPassword = providers.environmentVariable("GPG_SIGNING_PASSWORD")
+        if (signingKey.isPresent) {
+            useInMemoryPgpKeys(signingKey.get(), signingPassword.get())
+        }
+        sign(publishing.publications["mavenJava"])
     }
-    sign(publishing.publications["mavenJava"])
-}
 
-tasks.withType<Sign>().configureEach {
-    onlyIf { !version.toString().endsWith("-SNAPSHOT") }
+    tasks.withType<Sign>().configureEach {
+        onlyIf { !version.toString().endsWith("-SNAPSHOT") }
+    }
 }
