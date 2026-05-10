@@ -27,19 +27,63 @@ public final class AsyncOperationsClient {
     this(new ResourceRequestExecutor(httpClient, "/AsyncOperations"));
   }
 
+  /**
+   * Retrieves a single async operation by identifier.
+   *
+   * <pre>{@code
+   * AsyncOperation operation = client.asyncOperations().getById("op-123");
+   * }</pre>
+   *
+   * @param operationId async operation identifier
+   * @return resolved async operation
+   */
   public AsyncOperation getById(String operationId) {
     validateOperationId(operationId);
     return executor.get(executor.entityUri(operationId), ODataQuery.empty(), AsyncOperation.class);
   }
 
+  /**
+   * Lists async operations with no additional query options.
+   *
+   * <pre>{@code
+   * ODataFeed<AsyncOperation> feed = client.asyncOperations().list();
+   * }</pre>
+   *
+   * @return feed of async operations
+   */
   public ODataFeed<AsyncOperation> list() {
     return list(ODataQuery.empty());
   }
 
+  /**
+   * Lists async operations using OData query options.
+   *
+   * <pre>{@code
+   * ODataFeed<AsyncOperation> feed =
+   *     client.asyncOperations().list(ODataQuery.builder().top(25).build());
+   * }</pre>
+   *
+   * @param query OData query options
+   * @return feed of async operations
+   */
   public ODataFeed<AsyncOperation> list(ODataQuery query) {
     return executor.getCollection(executor.collectionUri(), query, ASYNC_OPERATION_FEED_TYPE);
   }
 
+  /**
+   * Polls an async operation until it reaches a terminal state or the timeout expires.
+   *
+   * <pre>{@code
+   * AsyncOperation completed =
+   *     client.asyncOperations().awaitCompletion("op-123", Duration.ofMinutes(2));
+   * }</pre>
+   *
+   * @param operationId async operation identifier
+   * @param timeout maximum time to wait
+   * @return terminal async operation state
+   * @throws ShareFileTimeoutException if the timeout expires before completion or polling is
+   *     interrupted
+   */
   public AsyncOperation awaitCompletion(String operationId, Duration timeout) {
     validateOperationId(operationId);
     validateTimeout(timeout);

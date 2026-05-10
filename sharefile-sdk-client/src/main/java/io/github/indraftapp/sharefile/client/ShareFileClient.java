@@ -73,51 +73,158 @@ public final class ShareFileClient implements AutoCloseable {
     return new ShareFileClientBuilder();
   }
 
+  /**
+   * Returns the Items resource client.
+   *
+   * <pre>{@code
+   * Item item = client.items().getById("home");
+   * }</pre>
+   *
+   * @return items client
+   */
   public ItemsClient items() {
     return itemsClient;
   }
 
+  /**
+   * Returns the Users resource client.
+   *
+   * <pre>{@code
+   * User current = client.users().getCurrentUser();
+   * }</pre>
+   *
+   * @return users client
+   */
   public UsersClient users() {
     return usersClient;
   }
 
+  /**
+   * Returns the Shares resource client.
+   *
+   * <pre>{@code
+   * ODataFeed<Share> shares = client.shares().list();
+   * }</pre>
+   *
+   * @return shares client
+   */
   public SharesClient shares() {
     return sharesClient;
   }
 
+  /**
+   * Returns the Groups resource client.
+   *
+   * <pre>{@code
+   * ODataFeed<Group> groups = client.groups().list();
+   * }</pre>
+   *
+   * @return groups client
+   */
   public GroupsClient groups() {
     return groupsClient;
   }
 
+  /**
+   * Returns the Accounts resource client.
+   *
+   * <pre>{@code
+   * Account account = client.accounts().get();
+   * }</pre>
+   *
+   * @return accounts client
+   */
   public AccountsClient accounts() {
     return accountsClient;
   }
 
+  /**
+   * Returns the AccessControls resource client.
+   *
+   * <pre>{@code
+   * ODataFeed<AccessControl> acls = client.accessControls().getByItem("fo123");
+   * }</pre>
+   *
+   * @return access-controls client
+   */
   public AccessControlsClient accessControls() {
     return accessControlsClient;
   }
 
+  /**
+   * Returns the Zones resource client placeholder.
+   *
+   * <pre>{@code
+   * ZonesClient zones = client.zones();
+   * }</pre>
+   *
+   * @return zones client
+   */
   public ZonesClient zones() {
     return zonesClient;
   }
 
+  /**
+   * Returns the WebhookSubscriptions resource client.
+   *
+   * <pre>{@code
+   * ODataFeed<WebhookSubscription> hooks = client.webhookSubscriptions().list();
+   * }</pre>
+   *
+   * @return webhook subscriptions client
+   */
   public WebhookSubscriptionsClient webhookSubscriptions() {
     return webhookSubscriptionsClient;
   }
 
+  /**
+   * Returns the Sessions resource client placeholder.
+   *
+   * <pre>{@code
+   * SessionsClient sessions = client.sessions();
+   * }</pre>
+   *
+   * @return sessions client
+   */
   public SessionsClient sessions() {
     return sessionsClient;
   }
 
+  /**
+   * Returns the AsyncOperations resource client.
+   *
+   * <pre>{@code
+   * AsyncOperation operation = client.asyncOperations().getById("op-123");
+   * }</pre>
+   *
+   * @return async-operations client
+   */
   public AsyncOperationsClient asyncOperations() {
     return asyncOperationsClient;
   }
 
+  /**
+   * Returns the Transfer resource client.
+   *
+   * <pre>{@code
+   * DownloadSpecification spec = client.transfers().resolveDownloadUrl("fi123");
+   * }</pre>
+   *
+   * @return transfer client
+   */
   public TransferClient transfers() {
     return transferClient;
   }
 
-  /** Returns a lightweight health snapshot based on account lookup and token state. */
+  /**
+   * Returns a lightweight health snapshot based on account lookup and token state.
+   *
+   * <pre>{@code
+   * HealthStatus status = client.checkHealth();
+   * }</pre>
+   *
+   * @return current SDK health status
+   */
   public HealthStatus checkHealth() {
     try {
       return HealthStatus.up(
@@ -127,6 +234,16 @@ public final class ShareFileClient implements AutoCloseable {
     }
   }
 
+  /**
+   * Closes SDK-owned resources such as the token manager and, when applicable, the SDK-managed
+   * executor and transport.
+   *
+   * <pre>{@code
+   * try (ShareFileClient client = ShareFileClient.builder() ... .build()) {
+   *   // use client
+   * }
+   * }</pre>
+   */
   @Override
   public void close() {
     if (!closed.compareAndSet(false, true)) {

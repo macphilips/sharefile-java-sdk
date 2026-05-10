@@ -20,6 +20,7 @@ import io.github.indraftapp.sharefile.core.odata.Filter;
 import io.github.indraftapp.sharefile.core.odata.ODataQuery;
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class ItemsClientTest {
@@ -71,6 +72,183 @@ class ItemsClientTest {
       assertTrue(uri.startsWith(ClientTestSupport.BASE_URL + "/Items(folder-1)/Children?"));
       assertTrue(uri.contains("%24top=50"));
       assertTrue(uri.contains("%24filter=Name%20eq%20%27Reports%27"));
+    }
+  }
+
+  @Test
+  void getNextPageFollowsODataNextLink() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "odata.nextLink": "https://testco.sf-api.com/sf/v3/Items(folder-1)/Children?$skip=1",
+          "value": [
+            {
+              "odata.type": "ShareFile.Api.Models.File",
+              "Id": "file-1",
+              "Name": "alpha.txt"
+            }
+          ]
+        }
+        """);
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "value": [
+            {
+              "odata.type": "ShareFile.Api.Models.File",
+              "Id": "file-2",
+              "Name": "beta.txt"
+            }
+          ]
+        }
+        """);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      ODataFeed<Item> firstPage = context.itemsClient().getChildren("folder-1");
+      ODataFeed<Item> secondPage = context.itemsClient().getNextPage(firstPage);
+
+      assertEquals("file-1", firstPage.getItems().get(0).getId());
+      assertEquals("file-2", secondPage.getItems().get(0).getId());
+      assertEquals(
+          "https://testco.sf-api.com/sf/v3/Items(folder-1)/Children?$skip=1",
+          transport.requests.get(1).uri().toString());
+    }
+  }
+
+  @Test
+  void listAllChildrenYieldsAllItemsAcrossThreePages() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "odata.nextLink": "https://testco.sf-api.com/sf/v3/Items(folder-1)/Children?$skip=1",
+          "value": [
+            {"odata.type":"ShareFile.Api.Models.File","Id":"file-1","Name":"alpha.txt"}
+          ]
+        }
+        """);
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "odata.nextLink": "https://testco.sf-api.com/sf/v3/Items(folder-1)/Children?$skip=2",
+          "value": [
+            {"odata.type":"ShareFile.Api.Models.File","Id":"file-2","Name":"beta.txt"}
+          ]
+        }
+        """);
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "value": [
+            {"odata.type":"ShareFile.Api.Models.File","Id":"file-3","Name":"gamma.txt"}
+          ]
+        }
+        """);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      List<String> ids =
+          context
+              .itemsClient()
+              .streamAllChildren("folder-1")
+              .map(Item::getId)
+              .collect(Collectors.toList());
+
+      assertEquals(List.of("file-1", "file-2", "file-3"), ids);
+      assertEquals(3, transport.requests.size());
+    }
+  }
+
+  @Test
+  void streamAllChildrenFetchesNextPageLazily() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "odata.nextLink": "https://testco.sf-api.com/sf/v3/Items(folder-1)/Children?$skip=2",
+          "value": [
+            {"odata.type":"ShareFile.Api.Models.File","Id":"file-1","Name":"alpha.txt"},
+            {"odata.type":"ShareFile.Api.Models.File","Id":"file-2","Name":"beta.txt"}
+          ]
+        }
+        """);
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "value": [
+            {"odata.type":"ShareFile.Api.Models.File","Id":"file-3","Name":"gamma.txt"}
+          ]
+        }
+        """);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      var iterator = context.itemsClient().streamAllChildren("folder-1").iterator();
+
+      assertTrue(iterator.hasNext());
+      assertEquals(1, transport.requests.size());
+      assertEquals("file-1", iterator.next().getId());
+      assertEquals("file-2", iterator.next().getId());
+      assertEquals(1, transport.requests.size());
+      assertTrue(iterator.hasNext());
+      assertEquals(2, transport.requests.size());
+      assertEquals("file-3", iterator.next().getId());
+    }
+  }
+
+  @Test
+  void listAllChildrenUsesInitialItemQueryAndThenServerNextLink() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "odata.nextLink": "https://testco.sf-api.com/sf/v3/Items(folder-1)/Children?$skip=2",
+          "value": [
+            {"odata.type":"ShareFile.Api.Models.File","Id":"file-1","Name":"alpha.txt"}
+          ]
+        }
+        """);
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "value": [
+            {"odata.type":"ShareFile.Api.Models.File","Id":"file-2","Name":"beta.txt"}
+          ]
+        }
+        """);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      List<String> ids =
+          context
+              .itemsClient()
+              .streamAllChildren(
+                  "folder-1",
+                  ItemQuery.builder()
+                      .includeDeleted(true)
+                      .orderingMode(ItemOrderingMode.NAME_ASC)
+                      .build())
+              .map(Item::getId)
+              .collect(Collectors.toList());
+
+      assertEquals(List.of("file-1", "file-2"), ids);
+      assertTrue(
+          transport
+              .requests
+              .get(0)
+              .uri()
+              .toString()
+              .contains("/Items(folder-1)/Children?includeDeleted=true&orderingMode=NameAsc"));
+      assertEquals(
+          "https://testco.sf-api.com/sf/v3/Items(folder-1)/Children?$skip=2",
+          transport.requests.get(1).uri().toString());
     }
   }
 

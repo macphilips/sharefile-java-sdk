@@ -214,10 +214,11 @@ public final class ShareFileClientBuilder {
               resolvedRetryConfig,
               resolvedMetrics,
               resolvedExecutor);
-      GroupsClient groupsClient = new GroupsClient();
+      GroupsClient groupsClient = new GroupsClient(httpClient);
       AccountsClient accountsClient = new AccountsClient(httpClient);
       ZonesClient zonesClient = new ZonesClient();
-      WebhookSubscriptionsClient webhookSubscriptionsClient = new WebhookSubscriptionsClient();
+      WebhookSubscriptionsClient webhookSubscriptionsClient =
+          new WebhookSubscriptionsClient(httpClient);
       SessionsClient sessionsClient = new SessionsClient();
 
       return new ShareFileClient(

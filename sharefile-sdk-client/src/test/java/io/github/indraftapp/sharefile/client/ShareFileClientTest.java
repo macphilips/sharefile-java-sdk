@@ -71,6 +71,48 @@ class ShareFileClientTest {
   }
 
   @Test
+  void groupsAccessorReturnsUsableRealClient() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(200, "{\"Id\":\"group-1\",\"Name\":\"Engineering\"}");
+
+    try (ShareFileClient client =
+        ShareFileClient.builder()
+            .subdomain("testco")
+            .clientCredentials("client-id", "client-secret")
+            .accessToken("seeded-token", "seeded-refresh")
+            .httpTransport(transport)
+            .build()) {
+      assertEquals("Engineering", client.groups().getById("group-1").getName());
+    }
+
+    assertEquals(
+        ClientTestSupport.BASE_URL + "/Groups(group-1)",
+        transport.getLastRequest().uri().toString());
+  }
+
+  @Test
+  void webhookSubscriptionsAccessorReturnsUsableRealClient() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200, "{\"Id\":\"sub-1\",\"WebhookUrl\":\"https://example.test\"}");
+
+    try (ShareFileClient client =
+        ShareFileClient.builder()
+            .subdomain("testco")
+            .clientCredentials("client-id", "client-secret")
+            .accessToken("seeded-token", "seeded-refresh")
+            .httpTransport(transport)
+            .build()) {
+      assertEquals(
+          "https://example.test", client.webhookSubscriptions().getById("sub-1").getWebhookUrl());
+    }
+
+    assertEquals(
+        ClientTestSupport.BASE_URL + "/WebhookSubscriptions(sub-1)",
+        transport.getLastRequest().uri().toString());
+  }
+
+  @Test
   void checkHealthReturnsUpWhenAccountLookupSucceeds() {
     ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
     transport.enqueueJsonResponse(200, "{\"Subdomain\":\"healthco\"}");

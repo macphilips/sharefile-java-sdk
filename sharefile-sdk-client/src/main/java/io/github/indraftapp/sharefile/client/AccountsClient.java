@@ -23,7 +23,15 @@ public final class AccountsClient {
     this(new ResourceRequestExecutor(httpClient, "/Accounts"));
   }
 
-  /** Returns the current ShareFile account. */
+  /**
+   * Retrieves the current ShareFile account.
+   *
+   * <pre>{@code
+   * Account account = client.accounts().get();
+   * }</pre>
+   *
+   * @return current account
+   */
   public Account get() {
     return executor.get(executor.collectionUri(), ODataQuery.empty(), Account.class);
   }

@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 /** Explicit ShareFile resource client for `/Items` endpoints. */
 public final class ItemsClient {
@@ -251,6 +252,114 @@ public final class ItemsClient {
    */
   public ODataFeed<Item> getChildren(String id, ItemQuery query) {
     return executor.getCollection(executor.entityActionUri(id, "Children"), query, ITEM_FEED_TYPE);
+  }
+
+  /**
+   * Retrieves the next page of an item feed by following {@code odata.nextLink}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ODataFeed<Item> page = client.items().getChildren("fo-folder");
+   * while (page.hasNextPage()) {
+   *   page = client.items().getNextPage(page);
+   * }
+   * }</pre>
+   *
+   * @param feed current feed page containing an {@code odata.nextLink}
+   * @return next feed page
+   * @throws IllegalArgumentException if the current feed does not expose a next-page link
+   */
+  public ODataFeed<Item> getNextPage(ODataFeed<Item> feed) {
+    return executor.getNextPage(feed, ITEM_FEED_TYPE);
+  }
+
+  /**
+   * Lazily iterates all children of a folder using the default query behavior.
+   *
+   * <pre>{@code
+   * for (Item item : client.items().listAllChildren("fo-folder")) {
+   *   process(item);
+   * }
+   * }</pre>
+   *
+   * @param folderId folder identifier
+   * @return lazy iterable of all child items across pages
+   */
+  public Iterable<Item> listAllChildren(String folderId) {
+    return listAllChildren(folderId, ItemQuery.empty());
+  }
+
+  /**
+   * Lazily iterates all children of a folder using OData query options for the first page.
+   *
+   * @param folderId folder identifier
+   * @param query OData query options applied to the first page request
+   * @return lazy iterable of all child items across pages
+   */
+  public Iterable<Item> listAllChildren(String folderId, ODataQuery query) {
+    return listAllChildren(folderId, ItemQuery.builder().odata(query).build());
+  }
+
+  /**
+   * Lazily iterates all children of a folder using merged item query parameters for the first page.
+   *
+   * <pre>{@code
+   * for (Item item : client.items().listAllChildren(
+   *     "fo-folder",
+   *     ItemQuery.builder().includeDeleted(true).build())) {
+   *   process(item);
+   * }
+   * }</pre>
+   *
+   * @param folderId folder identifier
+   * @param query item query parameters applied to the first page request
+   * @return lazy iterable of all child items across pages
+   */
+  public Iterable<Item> listAllChildren(String folderId, ItemQuery query) {
+    return new ODataPaginator<>(() -> getChildren(folderId, query), this::getNextPage);
+  }
+
+  /**
+   * Streams all children of a folder lazily using the default query behavior.
+   *
+   * <pre>{@code
+   * client.items().streamAllChildren("fo-folder").forEach(this::process);
+   * }</pre>
+   *
+   * @param folderId folder identifier
+   * @return lazy stream of all child items across pages
+   */
+  public Stream<Item> streamAllChildren(String folderId) {
+    return streamAllChildren(folderId, ItemQuery.empty());
+  }
+
+  /**
+   * Streams all children of a folder lazily using OData query options for the first page.
+   *
+   * @param folderId folder identifier
+   * @param query OData query options applied to the first page request
+   * @return lazy stream of all child items across pages
+   */
+  public Stream<Item> streamAllChildren(String folderId, ODataQuery query) {
+    return streamAllChildren(folderId, ItemQuery.builder().odata(query).build());
+  }
+
+  /**
+   * Streams all children of a folder lazily using merged item query parameters for the first page.
+   *
+   * <pre>{@code
+   * client.items()
+   *     .streamAllChildren("fo-folder", ItemQuery.builder().includeDeleted(true).build())
+   *     .forEach(this::process);
+   * }</pre>
+   *
+   * @param folderId folder identifier
+   * @param query item query parameters applied to the first page request
+   * @return lazy stream of all child items across pages
+   */
+  public Stream<Item> streamAllChildren(String folderId, ItemQuery query) {
+    return new ODataPaginator<>(() -> getChildren(folderId, query), this::getNextPage).stream();
   }
 
   /**
