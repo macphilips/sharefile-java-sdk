@@ -145,14 +145,17 @@ Pushes to `main` run the snapshot workflow, which:
 
 - verifies the build and tests
 - publishes to GitHub Packages
-- publishes snapshots to Sonatype Snapshots
+- stages Maven artifacts locally with Gradle
+- publishes snapshots to Sonatype Central with JReleaser using Central's Maven snapshots repository
 
 Required secrets:
 
-- `OSSRH_USERNAME`
-- `OSSRH_PASSWORD`
+- `CENTRAL_PORTAL_USERNAME`
+- `CENTRAL_PORTAL_PASSWORD`
+- `GPG_SIGNING_KEY`
+- `GPG_SIGNING_PASSWORD`
 
-GitHub Packages publishing uses the default GitHub Actions token.
+GitHub Packages publishing uses the default GitHub Actions token. JReleaser also requires a non-empty GitHub token even when release creation is skipped, so the workflows pass `GITHUB_TOKEN` into the deploy step.
 
 ### Release Publishing
 
@@ -160,12 +163,15 @@ The release workflow is `workflow_dispatch` only. It:
 
 1. derives the release version from `gradle.properties`
 2. runs the full build, checks, and aggregate coverage
-3. signs and publishes artifacts to Maven Central via Sonatype
-4. creates and pushes a Git tag
-5. bumps `gradle.properties` to the next `-SNAPSHOT`
+3. publishes to GitHub Packages with Gradle
+4. stages Maven artifacts with Gradle, then signs and publishes the release to Sonatype Central Portal with JReleaser
+5. creates and pushes a Git tag
+6. bumps `gradle.properties` to the next `-SNAPSHOT`
 
-Additional release secrets:
+Required Central release secrets:
 
+- `CENTRAL_PORTAL_USERNAME`
+- `CENTRAL_PORTAL_PASSWORD`
 - `GPG_SIGNING_KEY`
 - `GPG_SIGNING_PASSWORD`
 

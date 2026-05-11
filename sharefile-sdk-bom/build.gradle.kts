@@ -3,15 +3,7 @@ plugins {
     `maven-publish`
 }
 
-val isPublishingToMavenLocal =
-    gradle.startParameter.taskNames.any { requestedTask ->
-        requestedTask == "publishToMavenLocal" || requestedTask.endsWith(":publishToMavenLocal")
-    }
-val isSnapshotVersion = version.toString().endsWith("-SNAPSHOT")
-
-if (!isPublishingToMavenLocal) {
-    apply(plugin = "signing")
-}
+val jreleaserStagingRepository = rootProject.layout.buildDirectory.dir("staging-deploy")
 
 group = rootProject.group
 version = rootProject.version
@@ -67,30 +59,9 @@ publishing {
                     ).orNull
             }
         }
-        if (isSnapshotVersion) {
-            maven {
-                name = "CentralSnapshots"
-                url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-                credentials {
-                    username = providers.environmentVariable("OSSRH_USERNAME").orNull
-                    password = providers.environmentVariable("OSSRH_PASSWORD").orNull
-                }
-            }
+        maven {
+            name = "JReleaserStaging"
+            url = uri(jreleaserStagingRepository)
         }
-    }
-}
-
-if (!isPublishingToMavenLocal) {
-    configure<SigningExtension> {
-        val signingKey = providers.environmentVariable("GPG_SIGNING_KEY")
-        val signingPassword = providers.environmentVariable("GPG_SIGNING_PASSWORD")
-        if (signingKey.isPresent) {
-            useInMemoryPgpKeys(signingKey.get(), signingPassword.get())
-        }
-        sign(publishing.publications["mavenJava"])
-    }
-
-    tasks.withType<Sign>().configureEach {
-        onlyIf { !version.toString().endsWith("-SNAPSHOT") }
     }
 }

@@ -27,10 +27,17 @@ jobs:
       - name: Verify build
         run: ./gradlew clean test jacocoTestReport check --no-daemon
 
-      - name: Publish GitHub Packages and Central Portal snapshots
+      - name: Publish GitHub Packages and stage Central artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: ./gradlew publish --no-daemon
+        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository publishAllPublicationsToJReleaserStagingRepository --no-daemon
+
+      - name: Publish Central Portal snapshots with JReleaser
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CENTRAL_PORTAL_USERNAME: ${{ secrets.CENTRAL_PORTAL_USERNAME }}
+          CENTRAL_PORTAL_PASSWORD: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
+        run: ./gradlew jreleaserDeploy --no-daemon

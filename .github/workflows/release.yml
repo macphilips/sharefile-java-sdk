@@ -62,15 +62,20 @@ jobs:
       - name: Verify release build
         run: ./gradlew clean test jacocoTestReport check --no-daemon
 
-      - name: Publish release to Sonatype
+      - name: Publish GitHub Packages and stage Central artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository publishAllPublicationsToJReleaserStagingRepository --no-daemon
+
+      - name: Publish release to Sonatype Central with JReleaser
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CENTRAL_PORTAL_USERNAME: ${{ secrets.CENTRAL_PORTAL_USERNAME }}
+          CENTRAL_PORTAL_PASSWORD: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
-        run: ./gradlew publish publishToSonatype closeAndReleaseSonatypeStagingRepository --no-daemon
+        run: ./gradlew jreleaserDeploy --no-daemon
 
       - name: Tag release
         run: |

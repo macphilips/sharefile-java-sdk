@@ -7,19 +7,21 @@ import org.w3c.dom.Element
 import java.math.BigDecimal
 import javax.xml.parsers.DocumentBuilderFactory
 
+buildscript {
+    configurations.classpath {
+        resolutionStrategy.force("org.eclipse.jgit:org.eclipse.jgit:5.13.5.202508271544-r")
+    }
+}
+
 plugins {
     base
     jacoco
     id("io.github.indraftapp.sharefile.root-style")
     id("io.github.indraftapp.sharefile.git-hooks")
-    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
+    id("org.jreleaser") version "1.24.0"
 }
 
-val isPublishingToMavenLocal =
-    gradle.startParameter.taskNames.any { requestedTask ->
-        requestedTask == "publishToMavenLocal" || requestedTask.endsWith(":publishToMavenLocal")
-    }
-val isSnapshotVersion = version.toString().endsWith("-SNAPSHOT")
+val jreleaserStagingRepository = layout.buildDirectory.dir("staging-deploy")
 
 repositories {
     mavenCentral()
@@ -29,26 +31,58 @@ jacoco {
     toolVersion = "0.8.13"
 }
 
-nexusPublishing {
-    repositories {
-        sonatype {
-            nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
-            snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
-            username.set(providers.environmentVariable("OSSRH_USERNAME"))
-            password.set(providers.environmentVariable("OSSRH_PASSWORD"))
+jreleaser {
+    dependsOnAssemble = false
+
+    release {
+        github {
+            enabled = true
+            skipTag = true
+            skipRelease = true
+            sign = false
+            repoOwner = "macphilips"
+            name = "sharefile-java-sdk"
+            token = providers.environmentVariable("GITHUB_TOKEN").orNull
         }
     }
-}
 
-allprojects {
-    if (isSnapshotVersion) {
-        tasks.matching { task ->
-            task.name == "initializeSonatypeStagingRepository" ||
-                task.name == "closeAndReleaseSonatypeStagingRepository" ||
-                task.name == "publishToSonatype" ||
-                task.name.endsWith("ToSonatypeRepository")
-        }.configureEach {
-            onlyIf { false }
+    signing {
+        active = org.jreleaser.model.Active.ALWAYS
+        pgp {
+            active = org.jreleaser.model.Active.ALWAYS
+            armored = true
+            mode = org.jreleaser.model.Signing.Mode.MEMORY
+            secretKey = providers.environmentVariable("GPG_SIGNING_KEY").orNull
+            passphrase = providers.environmentVariable("GPG_SIGNING_PASSWORD").orNull
+            verify = false
+        }
+    }
+
+    deploy {
+        maven {
+            mavenCentral {
+                create("release-deploy") {
+                    active = org.jreleaser.model.Active.RELEASE
+                    url = "https://central.sonatype.com/api/v1/publisher"
+                    authorization = org.jreleaser.model.Http.Authorization.BEARER
+                    username = providers.environmentVariable("CENTRAL_PORTAL_USERNAME").orNull
+                    password = providers.environmentVariable("CENTRAL_PORTAL_PASSWORD").orNull
+                    stagingRepository(jreleaserStagingRepository.get().asFile.absolutePath)
+                }
+            }
+            nexus2 {
+                create("snapshot-deploy") {
+                    active = org.jreleaser.model.Active.SNAPSHOT
+                    snapshotSupported = true
+                    snapshotUrl = "https://central.sonatype.com/repository/maven-snapshots/"
+                    username = providers.environmentVariable("CENTRAL_PORTAL_USERNAME").orNull
+                    password = providers.environmentVariable("CENTRAL_PORTAL_PASSWORD").orNull
+                    applyMavenCentralRules = true
+                    closeRepository = true
+                    releaseRepository = true
+                    stagingRepository(jreleaserStagingRepository.get().asFile.absolutePath)
+                }
+            }
         }
     }
 }
@@ -61,9 +95,6 @@ subprojects {
     apply(plugin = "io.github.indraftapp.sharefile.java-checkstyle")
     apply(plugin = "jacoco")
     apply(plugin = "maven-publish")
-    if (!isPublishingToMavenLocal) {
-        apply(plugin = "signing")
-    }
 
     group = rootProject.group
     version = rootProject.version
@@ -142,31 +173,10 @@ subprojects {
                         ).orNull
                 }
             }
-            if (isSnapshotVersion) {
-                maven {
-                    name = "CentralSnapshots"
-                    url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-                    credentials {
-                        username = providers.environmentVariable("OSSRH_USERNAME").orNull
-                        password = providers.environmentVariable("OSSRH_PASSWORD").orNull
-                    }
-                }
+            maven {
+                name = "JReleaserStaging"
+                url = uri(jreleaserStagingRepository)
             }
-        }
-    }
-
-    if (!isPublishingToMavenLocal) {
-        configure<SigningExtension> {
-            val signingKey = providers.environmentVariable("GPG_SIGNING_KEY")
-            val signingPassword = providers.environmentVariable("GPG_SIGNING_PASSWORD")
-            if (signingKey.isPresent) {
-                useInMemoryPgpKeys(signingKey.get(), signingPassword.get())
-            }
-            sign(the<PublishingExtension>().publications["mavenJava"])
-        }
-
-        tasks.withType<Sign>().configureEach {
-            onlyIf { !version.toString().endsWith("-SNAPSHOT") }
         }
     }
 }
