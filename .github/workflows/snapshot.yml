@@ -27,10 +27,10 @@ jobs:
       - name: Verify build
         run: ./gradlew clean test jacocoTestReport check --no-daemon
 
-      - name: Publish GitHub Packages and Sonatype snapshots
+      - name: Publish GitHub Packages and Central Portal snapshots
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: ./gradlew publish publishToSonatype --no-daemon
+        run: ./gradlew publish --no-daemon

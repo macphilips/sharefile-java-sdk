@@ -7,6 +7,7 @@ val isPublishingToMavenLocal =
     gradle.startParameter.taskNames.any { requestedTask ->
         requestedTask == "publishToMavenLocal" || requestedTask.endsWith(":publishToMavenLocal")
     }
+val isSnapshotVersion = version.toString().endsWith("-SNAPSHOT")
 
 if (!isPublishingToMavenLocal) {
     apply(plugin = "signing")
@@ -64,6 +65,16 @@ publishing {
                     providers.environmentVariable("GITHUB_TOKEN").orElse(
                         providers.environmentVariable("GITHUB_PACKAGES_TOKEN")
                     ).orNull
+            }
+        }
+        if (isSnapshotVersion) {
+            maven {
+                name = "CentralSnapshots"
+                url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+                credentials {
+                    username = providers.environmentVariable("OSSRH_USERNAME").orNull
+                    password = providers.environmentVariable("OSSRH_PASSWORD").orNull
+                }
             }
         }
     }
