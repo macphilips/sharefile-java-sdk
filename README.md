@@ -1,234 +1,179 @@
 # ShareFile Java SDK
 
-Framework-agnostic Java 17 SDK for the ShareFile REST API v3, with a multi-module Gradle build and an optional Spring Boot starter module.
+[![CI](https://github.com/macphilips/sharefile-java-sdk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/macphilips/sharefile-java-sdk/actions/workflows/ci.yml)
+![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/macphilips/sharefile-java-sdk/main/.github/badges/jacoco.json)
 
-This repository is currently a `1.0.0-SNAPSHOT`. The architecture and planned API surface are documented in [`docs/TECH_SPEC.md`](docs/TECH_SPEC.md) and [`docs/TICKETS.md`](docs/TICKETS.md), while the codebase today implements the SDK foundation: models, OData support, Jackson configuration, typed exceptions, authentication/token management, retry primitives, and a streaming JDK HTTP transport.
+Framework-agnostic Java 17 SDK for the ShareFile REST API v3, with an optional Spring Boot 3 starter and a shared test-support module.
 
 ## Status
 
-What exists in the current snapshot:
+This repository is currently `1.0.0-SNAPSHOT`.
+
+The current codebase includes:
 
 - `sharefile-sdk-core`
-  - ShareFile/OData models
+  - ShareFile/OData models and enums
   - request/response DTOs
-  - enum types
   - OData query builder and filter DSL
-  - Jackson `ObjectMapper` factory for ShareFile JSON
+  - Jackson configuration for ShareFile JSON
   - typed exception hierarchy
 - `sharefile-sdk-client`
-  - `ShareFileConfig`
-  - credential and token store SPIs
-  - `TokenManager`
-  - `HttpTransport` abstraction
-  - `JdkHttpTransport`
-  - retry configuration primitives
-  - internal HTTP client helpers
+  - `ShareFileClient` and fluent builder
+  - OAuth/token lifecycle management
+  - streaming HTTP transport abstraction and JDK transport
+  - retry, metrics, and logging hooks
+  - Tier 1 and Tier 2 resource clients implemented in the repo today:
+    - `ItemsClient`
+    - `UsersClient`
+    - `SharesClient`
+    - `AccessControlsClient`
+    - `AsyncOperationsClient`
+    - `TransferClient`
+    - `GroupsClient`
+    - `WebhookSubscriptionsClient`
+    - `SessionsClient`
+    - minimal `AccountsClient`
+- `sharefile-spring-boot-starter`
+  - Boot auto-configuration
+  - configuration properties
+  - Actuator health indicator
+  - Micrometer metrics provider
+  - Spring `RestClient` transport adapter
+- `sharefile-sdk-test`
+  - `MockHttpTransport`
+  - shared JSON fixtures
+  - `ShareFileFixtures`
+  - `@ShareFileMockServer` for Spring/WireMock integration tests
 - `sharefile-sdk-bom`
   - dependency alignment for published modules
 
-What is not implemented yet in this snapshot:
-
-- public `ShareFileClient` entry point
-- resource clients such as `ItemsClient`, `SharesClient`, or `UsersClient`
-- Spring Boot auto-configuration and health/metrics integration
-- test-fixture utilities in `sharefile-sdk-test`
-
-If you need the planned architecture, module responsibilities, or rollout order, use the docs in [`docs/`](docs/).
-
 ## Modules
 
-| Module                          | Purpose                                                       | Current state |
-| ------------------------------- | ------------------------------------------------------------- | ------------- |
-| `sharefile-sdk-core`            | Models, OData helpers, Jackson config, exceptions             | Implemented   |
-| `sharefile-sdk-client`          | Auth, config, HTTP transport, retry, internal client plumbing | Implemented   |
-| `sharefile-spring-boot-starter` | Spring Boot 3 integration                                     | Scaffold only |
-| `sharefile-sdk-bom`             | BOM for version alignment                                     | Implemented   |
-| `sharefile-sdk-test`            | Shared test fixtures and utilities                            | Scaffold only |
+| Module                          | Purpose                                                       |
+| ------------------------------- | ------------------------------------------------------------- |
+| `sharefile-sdk-core`            | Models, OData helpers, Jackson config, exceptions             |
+| `sharefile-sdk-client`          | Public SDK facade, resource clients, auth, transfers, retries |
+| `sharefile-spring-boot-starter` | Spring Boot 3 integration                                     |
+| `sharefile-sdk-test`            | Shared test transport, fixtures, and WireMock support         |
+| `sharefile-sdk-bom`             | BOM for version alignment                                     |
 
 ## Requirements
 
 - Java 17+
-- Gradle wrapper included in the repo
+- Gradle wrapper included in the repository
 
-## Build
+## Build And Test
 
-```bash
-./gradlew build
-```
-
-Run tests:
+CI-equivalent commands from the repository root:
 
 ```bash
-./gradlew test
+./gradlew clean test jacocoTestReport
+./gradlew clean check
 ```
 
-Build a specific module:
+Useful targeted commands:
 
 ```bash
-./gradlew :sharefile-sdk-core:build
-./gradlew :sharefile-sdk-client:build
+./gradlew :sharefile-sdk-core:test
+./gradlew :sharefile-sdk-client:test
+./gradlew :sharefile-spring-boot-starter:test
+./gradlew :sharefile-sdk-test:test
 ```
 
-Publish snapshots to your local Maven cache:
+Publish to the local Maven cache:
 
 ```bash
 ./gradlew publishToMavenLocal
 ```
 
-## Project Layout
+## Coverage
 
-```text
-sharefile-java-sdk/
-├── sharefile-sdk-core/
-├── sharefile-sdk-client/
-├── sharefile-spring-boot-starter/
-├── sharefile-sdk-bom/
-├── sharefile-sdk-test/
-└── docs/
-```
+Aggregate JaCoCo coverage is generated at:
 
-## Current Usage
+- XML: `build/reports/jacoco/test/jacocoTestReport.xml`
+- HTML: `build/reports/jacoco/test/html/index.html`
 
-There is no top-level `ShareFileClient` yet, so the current code is most useful for integration work at the foundation layer.
+The coverage badge source file is:
 
-### Create SDK configuration
+- `.github/badges/jacoco.json`
+
+## Basic Usage
 
 ```java
-import io.github.indraftapp.sharefile.client.config.ShareFileConfig;
-import java.time.Duration;
+import io.github.indraftapp.sharefile.client.ShareFileClient;
 
-ShareFileConfig config = ShareFileConfig.builder()
+try (ShareFileClient client = ShareFileClient.builder()
     .subdomain("mycompany")
-    .connectTimeout(Duration.ofSeconds(10))
-    .readTimeout(Duration.ofSeconds(30))
-    .build();
-
-String baseUrl = config.getBaseUrl();
-String tokenEndpoint = config.getTokenEndpointUrl();
-```
-
-### Build credentials
-
-Authorization code flow:
-
-```java
-import io.github.indraftapp.sharefile.client.spi.Credentials;
-
-Credentials credentials = Credentials.builder()
     .clientCredentials("client-id", "client-secret")
     .authorizationCode("oauth-code")
-    .build();
+    .build()) {
+
+  var currentUser = client.users().getCurrentUser();
+  var home = client.items().getById("home");
+}
 ```
 
-Password grant for legacy or internal automation scenarios:
+Seeded-token flow:
 
 ```java
-Credentials credentials = Credentials.builder()
+ShareFileClient client = ShareFileClient.builder()
+    .subdomain("mycompany")
     .clientCredentials("client-id", "client-secret")
-    .passwordGrant("service-account@example.com", "password")
+    .accessToken("access-token", "refresh-token")
     .build();
 ```
 
-### Resolve credentials dynamically
+## Spring Boot Starter
 
-```java
-import io.github.indraftapp.sharefile.client.spi.CredentialProvider;
-import io.github.indraftapp.sharefile.client.spi.Credentials;
+The starter uses the `sharefile.*` property prefix.
 
-CredentialProvider provider = () -> Credentials.builder()
-    .clientCredentials(System.getenv("SF_CLIENT_ID"), System.getenv("SF_CLIENT_SECRET"))
-    .passwordGrant(System.getenv("SF_USER"), System.getenv("SF_PASS"))
-    .build();
+```yaml
+sharefile:
+  subdomain: mycompany
+  auth:
+    client-id: your-client-id
+    client-secret: your-client-secret
+    grant-type: authorization_code
+    code: your-auth-code
 ```
-
-The SDK only calls `CredentialProvider.resolve()` for initial authentication, explicit re-authentication, or refresh-token failure fallback. Normal refresh cycles use the cached token plus refresh token.
-
-### Create a ShareFile-tuned `ObjectMapper`
-
-```java
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.indraftapp.sharefile.core.jackson.ShareFileObjectMapper;
-
-ObjectMapper mapper = ShareFileObjectMapper.create();
-```
-
-This mapper is configured for:
-
-- ShareFile PascalCase JSON properties
-- Java time types
-- OData polymorphic entity deserialization
-- unknown-property tolerance
-
-### Build OData queries
-
-```java
-import io.github.indraftapp.sharefile.core.odata.Filter;
-import io.github.indraftapp.sharefile.core.odata.ODataQuery;
-import io.github.indraftapp.sharefile.core.odata.SortDirection;
-
-ODataQuery query = ODataQuery.builder()
-    .select("Id", "Name", "CreationDate")
-    .expand("Parent")
-    .filter(Filter.eq("Name", "Reports"))
-    .orderBy("CreationDate", SortDirection.DESC)
-    .top(100)
-    .build();
-```
-
-Serialize query options for a request:
-
-```java
-var params = query.toQueryParams();
-```
-
-### Use the streaming HTTP transport
-
-```java
-import io.github.indraftapp.sharefile.client.http.HttpTransport;
-import io.github.indraftapp.sharefile.client.http.JdkHttpTransport;
-
-HttpTransport transport = new JdkHttpTransport(config);
-```
-
-The transport is designed for streaming uploads and downloads and avoids buffering large bodies in memory.
-
-## Dependency Coordinates
-
-The Gradle group is:
-
-```text
-io.github.indraftapp
-```
-
-Current version:
-
-```text
-1.0.0-SNAPSHOT
-```
-
-Until the SDK is published, the practical workflow is to build or publish it locally from this repository.
 
 ## Publishing
 
-The build is set up for Sonatype OSSRH / Maven Central style publishing. The root build reads these environment variables when publishing:
+### Snapshot Publishing
+
+Pushes to `main` run the snapshot workflow, which:
+
+- verifies the build and tests
+- publishes to GitHub Packages
+- publishes snapshots to Sonatype Snapshots
+
+Required secrets:
 
 - `OSSRH_USERNAME`
 - `OSSRH_PASSWORD`
+
+GitHub Packages publishing uses the default GitHub Actions token.
+
+### Release Publishing
+
+The release workflow is `workflow_dispatch` only. It:
+
+1. derives the release version from `gradle.properties`
+2. runs the full build, checks, and aggregate coverage
+3. signs and publishes artifacts to Maven Central via Sonatype
+4. creates and pushes a Git tag
+5. bumps `gradle.properties` to the next `-SNAPSHOT`
+
+Additional release secrets:
+
 - `GPG_SIGNING_KEY`
 - `GPG_SIGNING_PASSWORD`
 
-Example:
-
-```bash
-./gradlew publishToSonatype
-./gradlew closeAndReleaseSonatypeStagingRepository
-```
-
 ## Documentation
 
-- Technical design: [`docs/TECH_SPEC.md`](docs/TECH_SPEC.md)
-- API planning and rollout: [`docs/TICKETS.md`](docs/TICKETS.md)
-- Endpoint and model reference: [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md)
+- [Technical design](docs/TECH_SPEC.md)
+- [Implementation tickets](docs/TICKETS.md)
+- [Endpoint and model reference](docs/API_REFERENCE.md)
 
 ## License
 

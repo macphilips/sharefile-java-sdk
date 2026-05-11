@@ -30,7 +30,7 @@ publishing {
             pom {
                 name.set(project.name)
                 description.set("ShareFile REST API SDK for Java - BOM")
-                url.set("https://github.com/indraftapp/sharefile-java-sdk")
+                url.set("https://github.com/macphilips/sharefile-java-sdk")
                 licenses {
                     license {
                         name.set("MIT License")
@@ -39,15 +39,31 @@ publishing {
                 }
                 developers {
                     developer {
-                        id.set("indraftapp")
-                        name.set("Indraft")
+                        id.set("macphilips")
+                        name.set("Titilope Philips")
                     }
                 }
                 scm {
-                    url.set("https://github.com/indraftapp/sharefile-java-sdk")
-                    connection.set("scm:git:git://github.com/indraftapp/sharefile-java-sdk.git")
-                    developerConnection.set("scm:git:ssh://github.com/indraftapp/sharefile-java-sdk.git")
+                    url.set("https://github.com/macphilips/sharefile-java-sdk")
+                    connection.set("scm:git:git://github.com/macphilips/sharefile-java-sdk.git")
+                    developerConnection.set("scm:git:ssh://github.com/macphilips/sharefile-java-sdk.git")
                 }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/macphilips/sharefile-java-sdk")
+            credentials {
+                username =
+                    providers.environmentVariable("GITHUB_ACTOR").orElse(
+                        providers.environmentVariable("GITHUB_PACKAGES_USERNAME")
+                    ).orNull
+                password =
+                    providers.environmentVariable("GITHUB_TOKEN").orElse(
+                        providers.environmentVariable("GITHUB_PACKAGES_TOKEN")
+                    ).orNull
             }
         }
     }

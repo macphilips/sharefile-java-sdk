@@ -8,6 +8,6 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.11.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testRuntimeOnly("ch.qos.logback:logback-classic:1.5.132")
+    testRuntimeOnly("ch.qos.logback:logback-classic:1.5.13")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
