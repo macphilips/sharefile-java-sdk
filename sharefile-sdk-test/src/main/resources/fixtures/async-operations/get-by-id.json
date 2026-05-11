@@ -1,0 +1,5 @@
+{
+  "odata.type": "ShareFile.Api.Models.AsyncOperation",
+  "Id": "async-123",
+  "Status": "Completed"
+}

@@ -1,0 +1,5 @@
+{
+  "odata.type": "ShareFile.Api.Models.Share",
+  "Id": "share-123",
+  "Title": "Project Share"
+}

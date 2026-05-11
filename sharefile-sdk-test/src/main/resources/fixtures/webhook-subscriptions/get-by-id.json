@@ -1,0 +1,15 @@
+{
+  "odata.type": "ShareFile.Api.Models.WebhookSubscription",
+  "Id": "sub-123",
+  "SubscriptionContext": {
+    "ResourceType": "Folder",
+    "ResourceId": "folder-123"
+  },
+  "WebhookUrl": "https://myapp.example.com/webhooks/sharefile",
+  "Events": [
+    {
+      "ResourceType": "File",
+      "OperationName": "Upload"
+    }
+  ]
+}
