@@ -113,6 +113,25 @@ class ShareFileClientTest {
   }
 
   @Test
+  void sessionsAccessorReturnsUsableRealClient() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(200, "{\"Id\":\"session-1\"}");
+
+    try (ShareFileClient client =
+        ShareFileClient.builder()
+            .subdomain("testco")
+            .clientCredentials("client-id", "client-secret")
+            .accessToken("seeded-token", "seeded-refresh")
+            .httpTransport(transport)
+            .build()) {
+      assertEquals("session-1", client.sessions().get().getId());
+    }
+
+    assertEquals(
+        ClientTestSupport.BASE_URL + "/Sessions", transport.getLastRequest().uri().toString());
+  }
+
+  @Test
   void checkHealthReturnsUpWhenAccountLookupSucceeds() {
     ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
     transport.enqueueJsonResponse(200, "{\"Subdomain\":\"healthco\"}");

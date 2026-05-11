@@ -219,7 +219,7 @@ public final class ShareFileClientBuilder {
       ZonesClient zonesClient = new ZonesClient();
       WebhookSubscriptionsClient webhookSubscriptionsClient =
           new WebhookSubscriptionsClient(httpClient);
-      SessionsClient sessionsClient = new SessionsClient();
+      SessionsClient sessionsClient = new SessionsClient(httpClient);
 
       return new ShareFileClient(
           itemsClient,

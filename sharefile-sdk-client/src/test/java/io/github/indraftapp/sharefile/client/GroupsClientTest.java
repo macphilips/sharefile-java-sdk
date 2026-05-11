@@ -99,9 +99,30 @@ class GroupsClientTest {
           transport.requests.get(0).uri().toString());
       assertEquals("{\"Id\":\"user-1\"}", transport.requests.get(0).body());
       assertEquals(
-          ClientTestSupport.BASE_URL + "/Groups(group-1)/Contacts(user-1)",
+          ClientTestSupport.BASE_URL + "/Groups(group-1)/Contacts",
           transport.requests.get(1).uri().toString());
       assertEquals("DELETE", transport.requests.get(1).method());
+      assertEquals("[{\"Id\":\"user-1\"}]", transport.requests.get(1).body());
+    }
+  }
+
+  @Test
+  void exportContactsUsesExportDocumentEndpoint() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    byte[] responseBody =
+        "id,name\nuser-1,Test User\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    transport.enqueueResponse(200, responseBody);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      byte[] exported = context.groupsClient().exportContacts("group-1");
+
+      assertEquals(
+          ClientTestSupport.BASE_URL + "/Groups(group-1)/ExportDocument",
+          transport.getLastRequest().uri().toString());
+      assertEquals("GET", transport.getLastRequest().method());
+      assertEquals(
+          "id,name\nuser-1,Test User\n",
+          new String(exported, java.nio.charset.StandardCharsets.UTF_8));
     }
   }
 }

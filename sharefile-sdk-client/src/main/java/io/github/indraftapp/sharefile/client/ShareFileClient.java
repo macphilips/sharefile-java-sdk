@@ -178,10 +178,10 @@ public final class ShareFileClient implements AutoCloseable {
   }
 
   /**
-   * Returns the Sessions resource client placeholder.
+   * Returns the Sessions resource client.
    *
    * <pre>{@code
-   * SessionsClient sessions = client.sessions();
+   * Session session = client.sessions().get();
    * }</pre>
    *
    * @return sessions client

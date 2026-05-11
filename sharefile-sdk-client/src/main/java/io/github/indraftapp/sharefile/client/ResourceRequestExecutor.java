@@ -117,6 +117,14 @@ final class ResourceRequestExecutor {
     httpClient.delete(uri);
   }
 
+  void delete(URI uri, Object body) {
+    httpClient.delete(uri, body);
+  }
+
+  byte[] getBytes(URI uri, ODataQuery query) {
+    return httpClient.getBytes(appendQuery(uri, query));
+  }
+
   <T> ODataFeed<T> getCollection(URI uri, ODataQuery query, TypeReference<ODataFeed<T>> type) {
     return httpClient.get(appendQuery(uri, query), type);
   }

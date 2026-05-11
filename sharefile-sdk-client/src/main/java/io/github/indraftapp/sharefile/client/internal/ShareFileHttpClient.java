@@ -202,6 +202,39 @@ public final class ShareFileHttpClient {
     execute("DELETE", uri, null, Void.class, RetryPolicy.DEFAULT);
   }
 
+  public void delete(URI uri, Object body) {
+    execute("DELETE", uri, body, Void.class, RetryPolicy.DEFAULT);
+  }
+
+  public byte[] getBytes(URI uri) {
+    String requestId = UUID.randomUUID().toString();
+    MetricsProvider.Timer timer = metrics.startTimer();
+    String entity = extractEntityName(uri.getPath());
+    incrementActiveRequests(entity, "GET");
+
+    try {
+      HttpTransport.HttpResponse response =
+          executeWithRetry("GET", resolveUri(uri), null, requestId, RetryPolicy.DEFAULT);
+
+      try (response) {
+        int status = response.statusCode();
+        metrics.recordRequest(timer, entity, "GET", status);
+
+        if (status == 204) {
+          return new byte[0];
+        }
+
+        return response.bodyBytes();
+      }
+    } catch (ShareFileApiException e) {
+      timer.stop();
+      recordErrorMetric(entity, "GET", e.getHttpStatus());
+      throw e;
+    } finally {
+      decrementActiveRequests(entity, "GET");
+    }
+  }
+
   public <T> T convertValue(JsonNode node, Class<T> targetType) {
     try {
       return objectMapper.treeToValue(node, targetType);

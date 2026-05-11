@@ -7,7 +7,6 @@ import io.github.indraftapp.sharefile.core.model.Contact;
 import io.github.indraftapp.sharefile.core.model.Group;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
 import io.github.indraftapp.sharefile.core.odata.ODataQuery;
-import java.net.URI;
 import java.util.Objects;
 
 /** Explicit ShareFile resource client for `/Groups` endpoints. */
@@ -205,7 +204,23 @@ public final class GroupsClient {
    * @param userId contact or user identifier to remove
    */
   public void removeMember(String groupId, String userId) {
-    URI memberUri = executor.relativeUri("/Groups(%s)/Contacts(%s)".formatted(groupId, userId));
-    executor.delete(memberUri);
+    Contact contact = new Contact();
+    contact.setId(userId);
+    executor.delete(executor.entityActionUri(groupId, "Contacts"), java.util.List.of(contact));
+  }
+
+  /**
+   * Exports group contacts as a document payload.
+   *
+   * <pre>{@code
+   * byte[] export = client.groups().exportContacts("group-1");
+   * }</pre>
+   *
+   * @param groupId group identifier
+   * @return exported document bytes
+   */
+  public byte[] exportContacts(String groupId) {
+    return executor.getBytes(
+        executor.entityActionUri(groupId, "ExportDocument"), ODataQuery.empty());
   }
 }
