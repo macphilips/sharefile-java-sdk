@@ -40,6 +40,19 @@ nexusPublishing {
     }
 }
 
+allprojects {
+    if (isSnapshotVersion) {
+        tasks.matching { task ->
+            task.name == "initializeSonatypeStagingRepository" ||
+                task.name == "closeAndReleaseSonatypeStagingRepository" ||
+                task.name == "publishToSonatype" ||
+                task.name.endsWith("ToSonatypeRepository")
+        }.configureEach {
+            onlyIf { false }
+        }
+    }
+}
+
 subprojects {
     // BOM uses java-platform with its own publishing config — skip here
     if (name == "sharefile-sdk-bom") return@subprojects
