@@ -2,10 +2,12 @@ package io.github.indraftapp.sharefile.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.github.indraftapp.sharefile.client.internal.ShareFileHttpClient;
+import io.github.indraftapp.sharefile.client.retry.RetryPolicy;
 import io.github.indraftapp.sharefile.core.exception.ShareFileNotFoundException;
 import io.github.indraftapp.sharefile.core.model.Group;
 import io.github.indraftapp.sharefile.core.model.Item;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
+import io.github.indraftapp.sharefile.core.model.OperationResult;
 import io.github.indraftapp.sharefile.core.model.User;
 import io.github.indraftapp.sharefile.core.model.response.UserPreferences;
 import io.github.indraftapp.sharefile.core.model.response.UserSecurity;
@@ -127,22 +129,54 @@ public final class UsersClient {
    * @return created user
    */
   public User create(User user) {
-    return executor.post(executor.collectionUri(), user, User.class);
+    return create(user, RetryPolicy.DEFAULT);
+  }
+
+  /**
+   * Creates a new user with an explicit retry policy.
+   *
+   * <pre>{@code
+   * User created = client.users().create(user, RetryPolicy.retryOnServerError(1));
+   * }</pre>
+   *
+   * @param user user payload
+   * @param policy retry policy to apply to the request
+   * @return created user
+   */
+  public User create(User user, RetryPolicy policy) {
+    return executor.post(executor.collectionUri(), user, User.class, policy);
   }
 
   /**
    * Updates an existing user.
    *
    * <pre>{@code
-   * User updated = client.users().update("user-1", user);
+   * OperationResult<User> updated = client.users().update("user-1", user);
    * }</pre>
    *
    * @param id user identifier
    * @param user partial or full user payload
-   * @return updated user
+   * @return operation result carrying the updated user
    */
-  public User update(String id, User user) {
-    return executor.patch(executor.entityUri(id), user, User.class);
+  public OperationResult<User> update(String id, User user) {
+    return update(id, user, RetryPolicy.DEFAULT);
+  }
+
+  /**
+   * Updates an existing user with an explicit retry policy.
+   *
+   * <pre>{@code
+   * OperationResult<User> updated =
+   *     client.users().update("user-1", user, RetryPolicy.retryOnServerError(1));
+   * }</pre>
+   *
+   * @param id user identifier
+   * @param user partial or full user payload
+   * @param policy retry policy to apply to the request
+   * @return operation result carrying the updated user
+   */
+  public OperationResult<User> update(String id, User user, RetryPolicy policy) {
+    return executor.patchOperationResult(executor.entityUri(id), user, User.class, policy);
   }
 
   /**
@@ -229,7 +263,21 @@ public final class UsersClient {
    * @param id user identifier
    */
   public void resetPassword(String id) {
-    executor.post(executor.entityActionUri(id, "ResetPassword"), null, Void.class);
+    resetPassword(id, RetryPolicy.DEFAULT);
+  }
+
+  /**
+   * Triggers a password reset for a user with an explicit retry policy.
+   *
+   * <pre>{@code
+   * client.users().resetPassword("user-1", RetryPolicy.retryOnServerError(1));
+   * }</pre>
+   *
+   * @param id user identifier
+   * @param policy retry policy to apply to the request
+   */
+  public void resetPassword(String id, RetryPolicy policy) {
+    executor.post(executor.entityActionUri(id, "ResetPassword"), null, Void.class, policy);
   }
 
   /**
@@ -242,7 +290,21 @@ public final class UsersClient {
    * @param id user identifier
    */
   public void sendWelcomeEmail(String id) {
-    executor.post(executor.entityActionUri(id, "ResendWelcome"), null, Void.class);
+    sendWelcomeEmail(id, RetryPolicy.DEFAULT);
+  }
+
+  /**
+   * Resends the welcome email for a user with an explicit retry policy.
+   *
+   * <pre>{@code
+   * client.users().sendWelcomeEmail("user-1", RetryPolicy.retryOnServerError(1));
+   * }</pre>
+   *
+   * @param id user identifier
+   * @param policy retry policy to apply to the request
+   */
+  public void sendWelcomeEmail(String id, RetryPolicy policy) {
+    executor.post(executor.entityActionUri(id, "ResendWelcome"), null, Void.class, policy);
   }
 
   /**

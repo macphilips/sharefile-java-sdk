@@ -528,6 +528,143 @@ class TokenManagerTest {
   }
 
   @Test
+  void reauthenticateWithCurrentSourceBypassesValidCachedToken() {
+    OAuthToken preExisting = new OAuthToken();
+    preExisting.setAccessToken("still-valid");
+    preExisting.setRefreshToken("refresh-me");
+    preExisting.setExpiresIn(3600L);
+    preExisting.setExpiresAt(Instant.now().plusSeconds(3600));
+
+    mockTransport.enqueueTokenResponse("new-access", "new-refresh", 3600);
+
+    tokenManager =
+        new TokenManager(
+            config,
+            CLIENT_ID,
+            CLIENT_SECRET,
+            credentialProvider,
+            mockTransport,
+            tokenStore,
+            OBJECT_MAPPER,
+            preExisting);
+
+    String token = tokenManager.reauthenticateWithCurrentSource();
+
+    assertEquals("new-access", token);
+    assertEquals(1, mockTransport.requests.size());
+    assertTrue(mockTransport.requests.get(0).body.contains("grant_type=refresh_token"));
+  }
+
+  @Test
+  void reauthenticateWithCredentialsSwitchesToNewStaticCredentials() {
+    OAuthToken preExisting = new OAuthToken();
+    preExisting.setAccessToken("still-valid");
+    preExisting.setRefreshToken("refresh-me");
+    preExisting.setExpiresIn(3600L);
+    preExisting.setExpiresAt(Instant.now().plusSeconds(3600));
+
+    mockTransport.enqueueTokenResponse("rotated-access", "rotated-refresh", 3600);
+
+    tokenManager =
+        new TokenManager(
+            config,
+            CLIENT_ID,
+            CLIENT_SECRET,
+            credentialProvider,
+            mockTransport,
+            tokenStore,
+            OBJECT_MAPPER,
+            preExisting);
+
+    Credentials rotatedCredentials =
+        Credentials.builder()
+            .clientCredentials("rotated-client-id", "rotated-client-secret")
+            .passwordGrant("rotated-user@example.com", "rotated-pass")
+            .build();
+
+    String token = tokenManager.reauthenticateWithCredentials(rotatedCredentials);
+
+    assertEquals("rotated-access", token);
+    assertEquals(1, mockTransport.requests.size());
+    String body = mockTransport.requests.get(0).body;
+    assertTrue(body.contains("grant_type=password"));
+    assertTrue(body.contains("client_id=rotated-client-id"));
+    assertTrue(body.contains("client_secret=rotated-client-secret"));
+    assertTrue(body.contains("username=rotated-user%40example.com"));
+    assertTrue(body.contains("password=rotated-pass"));
+    assertEquals(0, credentialProvider.callCount.get());
+  }
+
+  @Test
+  void reauthenticateWithProviderSwitchesFutureFullAuthenticationSource() {
+    OAuthToken preExisting = new OAuthToken();
+    preExisting.setAccessToken("still-valid");
+    preExisting.setRefreshToken("refresh-me");
+    preExisting.setExpiresIn(3600L);
+    preExisting.setExpiresAt(Instant.now().plusSeconds(3600));
+
+    Credentials rotatedCredentials =
+        Credentials.builder()
+            .clientCredentials("rotated-client-id", "rotated-client-secret")
+            .passwordGrant("rotated-user@example.com", "rotated-pass")
+            .build();
+    CountingCredentialProvider rotatedProvider = new CountingCredentialProvider(rotatedCredentials);
+
+    mockTransport.enqueueTokenResponse("rotated-access", "rotated-refresh", 3600);
+    mockTransport.enqueueErrorResponse(401, "{\"error\":\"invalid_grant\"}");
+    mockTransport.enqueueErrorResponse(401, "{\"error\":\"invalid_grant\"}");
+    mockTransport.enqueueErrorResponse(401, "{\"error\":\"invalid_grant\"}");
+    mockTransport.enqueueTokenResponse("reauth-access", "reauth-refresh", 3600);
+
+    tokenManager =
+        new TokenManager(
+            config,
+            CLIENT_ID,
+            CLIENT_SECRET,
+            credentialProvider,
+            mockTransport,
+            tokenStore,
+            OBJECT_MAPPER,
+            preExisting);
+
+    assertEquals("rotated-access", tokenManager.reauthenticateWithProvider(rotatedProvider));
+    assertEquals("reauth-access", tokenManager.reauthenticateWithCurrentSource());
+
+    assertEquals(5, mockTransport.requests.size());
+    assertEquals(2, rotatedProvider.callCount.get());
+    String lastBody = mockTransport.requests.get(4).body;
+    assertTrue(lastBody.contains("grant_type=password"));
+    assertTrue(lastBody.contains("client_id=rotated-client-id"));
+    assertTrue(lastBody.contains("client_secret=rotated-client-secret"));
+  }
+
+  @Test
+  void seededTokenOnlyReauthenticateWithCurrentSourceFailsWithoutFullAuthSource() {
+    OAuthToken preExisting = new OAuthToken();
+    preExisting.setAccessToken("still-valid");
+    preExisting.setExpiresIn(3600L);
+    preExisting.setExpiresAt(Instant.now().plusSeconds(3600));
+
+    tokenManager =
+        new TokenManager(
+            config,
+            CLIENT_ID,
+            CLIENT_SECRET,
+            () -> {
+              throw new CredentialResolutionException("no full auth source");
+            },
+            mockTransport,
+            tokenStore,
+            OBJECT_MAPPER,
+            preExisting);
+
+    ShareFileAuthenticationException ex =
+        assertThrows(
+            ShareFileAuthenticationException.class, tokenManager::reauthenticateWithCurrentSource);
+    assertTrue(ex.getMessage().contains("resolve credentials"));
+  }
+
+  @Test
   void tokenRefreshBufferCanScheduleEarlierThanEightyPercent() throws Exception {
     config =
         ShareFileConfig.builder()

@@ -154,6 +154,7 @@ final class RetryEngine {
    * engine can make decisions without re-parsing.
    */
   static final class RetryableResponseException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
     private final int statusCode;
     private final long retryAfterSeconds;
     private final String errorCode;

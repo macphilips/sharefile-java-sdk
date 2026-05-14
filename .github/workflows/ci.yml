@@ -27,6 +27,11 @@ jobs:
       - name: Build, test, and aggregate coverage
         run: ./gradlew clean test jacocoTestReport check --no-daemon
 
+      - uses: indraftsolutions/coverage-reporter@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          coverage_files: "Java,build/reports/jacoco/test/jacocoTestReport.xml"
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4

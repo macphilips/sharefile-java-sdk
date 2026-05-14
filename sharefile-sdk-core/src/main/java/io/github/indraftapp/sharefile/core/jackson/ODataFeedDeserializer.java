@@ -15,6 +15,7 @@ import java.util.List;
 
 final class ODataFeedDeserializer extends StdDeserializer<ODataFeed<?>>
     implements ContextualDeserializer {
+  private static final long serialVersionUID = 1L;
 
   private final JavaType itemType;
 

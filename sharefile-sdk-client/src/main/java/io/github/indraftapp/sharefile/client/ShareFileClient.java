@@ -2,6 +2,8 @@ package io.github.indraftapp.sharefile.client;
 
 import io.github.indraftapp.sharefile.client.auth.TokenManager;
 import io.github.indraftapp.sharefile.client.http.HttpTransport;
+import io.github.indraftapp.sharefile.client.spi.CredentialProvider;
+import io.github.indraftapp.sharefile.client.spi.Credentials;
 import io.github.indraftapp.sharefile.core.model.HealthStatus;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -158,7 +160,10 @@ public final class ShareFileClient implements AutoCloseable {
    * ZonesClient zones = client.zones();
    * }</pre>
    *
-   * @return zones client
+   * <p>No `/Zones` operations are implemented yet; this accessor exists only to keep the public
+   * facade stable until Tier 3 zone support is added.
+   *
+   * @return zones client placeholder
    */
   public ZonesClient zones() {
     return zonesClient;
@@ -232,6 +237,56 @@ public final class ShareFileClient implements AutoCloseable {
     } catch (Exception e) {
       return HealthStatus.down(e);
     }
+  }
+
+  /**
+   * Forces immediate re-authentication using the client's current auth source.
+   *
+   * <p>If a refresh token is available, the SDK attempts refresh first and falls back to full
+   * re-authentication if refresh fails.
+   *
+   * <pre>{@code
+   * client.reauthenticate();
+   * }</pre>
+   */
+  public void reauthenticate() {
+    tokenManager.reauthenticateWithCurrentSource();
+  }
+
+  /**
+   * Replaces the client's auth source with fixed credentials and immediately performs full
+   * re-authentication.
+   *
+   * <pre>{@code
+   * client.reauthenticate(
+   *     Credentials.builder()
+   *         .clientCredentials("client-id", "client-secret")
+   *         .passwordGrant("user@example.com", "new-password")
+   *         .build());
+   * }</pre>
+   *
+   * @param credentials replacement credentials to use now and for future full re-authentication
+   */
+  public void reauthenticate(Credentials credentials) {
+    tokenManager.reauthenticateWithCredentials(credentials);
+  }
+
+  /**
+   * Replaces the client's auth source with a credential provider and immediately performs full
+   * re-authentication.
+   *
+   * <pre>{@code
+   * client.reauthenticate(
+   *     () -> Credentials.builder()
+   *         .clientCredentials("client-id", "client-secret")
+   *         .passwordGrant("user@example.com", lookupLatestPassword())
+   *         .build());
+   * }</pre>
+   *
+   * @param credentialProvider replacement provider to use now and for future full re-authentication
+   */
+  public void reauthenticate(CredentialProvider credentialProvider) {
+    tokenManager.reauthenticateWithProvider(credentialProvider);
   }
 
   /**

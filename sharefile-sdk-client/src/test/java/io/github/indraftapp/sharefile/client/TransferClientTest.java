@@ -401,43 +401,39 @@ class TransferClientTest {
 
   @Test
   void progressTrackerAddBytesIsAtomic() throws Exception {
-    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    Object tracker = newProgressTracker(1000L);
+    invokeTrackerMethod(tracker, "start");
 
-    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
-      Object tracker = newProgressTracker(1000L);
-      invokeTrackerMethod(tracker, "start");
-
-      int threadCount = 8;
-      int incrementsPerThread = 250;
-      java.util.concurrent.ExecutorService executor =
-          java.util.concurrent.Executors.newFixedThreadPool(threadCount);
-      try {
-        List<? extends java.util.concurrent.Future<?>> futures =
-            java.util.stream.IntStream.range(0, threadCount)
-                .mapToObj(
-                    i ->
-                        executor.submit(
-                            () -> {
-                              try {
-                                for (int j = 0; j < incrementsPerThread; j++) {
-                                  invokeTrackerMethod(tracker, "addBytes", 1L);
-                                }
-                              } catch (Exception e) {
-                                throw new RuntimeException(e);
+    int threadCount = 8;
+    int incrementsPerThread = 250;
+    java.util.concurrent.ExecutorService executor =
+        java.util.concurrent.Executors.newFixedThreadPool(threadCount);
+    try {
+      List<? extends java.util.concurrent.Future<?>> futures =
+          java.util.stream.IntStream.range(0, threadCount)
+              .mapToObj(
+                  i ->
+                      executor.submit(
+                          () -> {
+                            try {
+                              for (int j = 0; j < incrementsPerThread; j++) {
+                                invokeTrackerMethod(tracker, "addBytes", 1L);
                               }
-                            }))
-                .toList();
-        for (java.util.concurrent.Future<?> future : futures) {
-          future.get(5, TimeUnit.SECONDS);
-        }
-      } finally {
-        executor.shutdownNow();
+                            } catch (Exception e) {
+                              throw new RuntimeException(e);
+                            }
+                          }))
+              .toList();
+      for (java.util.concurrent.Future<?> future : futures) {
+        future.get(5, TimeUnit.SECONDS);
       }
-
-      TransferProgress progress = snapshot(tracker);
-      assertEquals(threadCount * incrementsPerThread, progress.getBytesTransferred());
-      assertEquals(TransferState.IN_PROGRESS, progress.getState());
+    } finally {
+      executor.shutdownNow();
     }
+
+    TransferProgress progress = snapshot(tracker);
+    assertEquals(threadCount * incrementsPerThread, progress.getBytesTransferred());
+    assertEquals(TransferState.IN_PROGRESS, progress.getState());
   }
 
   private static Object newProgressTracker(long totalBytes) throws Exception {

@@ -2,6 +2,7 @@ package io.github.indraftapp.sharefile.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.github.indraftapp.sharefile.client.internal.ShareFileHttpClient;
+import io.github.indraftapp.sharefile.client.retry.RetryPolicy;
 import io.github.indraftapp.sharefile.core.model.Contact;
 import io.github.indraftapp.sharefile.core.model.Item;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
@@ -96,7 +97,22 @@ public final class SharesClient {
    * @return created share
    */
   public Share createSendShare(SendShareRequest request) {
-    return executor.post(executor.collectionUri(), request, Share.class);
+    return createSendShare(request, RetryPolicy.DEFAULT);
+  }
+
+  /**
+   * Creates a send-style share with an explicit retry policy.
+   *
+   * <pre>{@code
+   * Share share = client.shares().createSendShare(request, RetryPolicy.retryOnServerError(1));
+   * }</pre>
+   *
+   * @param request send share request payload
+   * @param policy retry policy to apply to the request
+   * @return created share
+   */
+  public Share createSendShare(SendShareRequest request, RetryPolicy policy) {
+    return executor.post(executor.collectionUri(), request, Share.class, policy);
   }
 
   /**
@@ -110,7 +126,22 @@ public final class SharesClient {
    * @return created share
    */
   public Share createRequestShare(RequestShareRequest request) {
-    return executor.post(executor.collectionUri(), request, Share.class);
+    return createRequestShare(request, RetryPolicy.DEFAULT);
+  }
+
+  /**
+   * Creates a request-style share with an explicit retry policy.
+   *
+   * <pre>{@code
+   * Share share = client.shares().createRequestShare(request, RetryPolicy.retryOnServerError(1));
+   * }</pre>
+   *
+   * @param request request share payload
+   * @param policy retry policy to apply to the request
+   * @return created share
+   */
+  public Share createRequestShare(RequestShareRequest request, RetryPolicy policy) {
+    return executor.post(executor.collectionUri(), request, Share.class, policy);
   }
 
   /**
@@ -125,7 +156,23 @@ public final class SharesClient {
    * @return updated share
    */
   public Share update(String id, Share share) {
-    return executor.patch(executor.entityUri(id), share, Share.class);
+    return update(id, share, RetryPolicy.DEFAULT);
+  }
+
+  /**
+   * Updates an existing share with an explicit retry policy.
+   *
+   * <pre>{@code
+   * Share updated = client.shares().update("share-1", share, RetryPolicy.retryOnServerError(1));
+   * }</pre>
+   *
+   * @param id share identifier
+   * @param share partial or full share payload
+   * @param policy retry policy to apply to the request
+   * @return updated share
+   */
+  public Share update(String id, Share share, RetryPolicy policy) {
+    return executor.patch(executor.entityUri(id), share, Share.class, policy);
   }
 
   /**
@@ -182,7 +229,23 @@ public final class SharesClient {
    * @param request notification request payload
    */
   public void sendNotification(String shareId, ShareNotificationRequest request) {
-    executor.post(executor.entityActionUri(shareId, "Notify"), request, Void.class);
+    sendNotification(shareId, request, RetryPolicy.DEFAULT);
+  }
+
+  /**
+   * Sends a notification for an existing share with an explicit retry policy.
+   *
+   * <pre>{@code
+   * client.shares().sendNotification("share-1", request, RetryPolicy.retryOnServerError(1));
+   * }</pre>
+   *
+   * @param shareId share identifier
+   * @param request notification request payload
+   * @param policy retry policy to apply to the request
+   */
+  public void sendNotification(
+      String shareId, ShareNotificationRequest request, RetryPolicy policy) {
+    executor.post(executor.entityActionUri(shareId, "Notify"), request, Void.class, policy);
   }
 
   /**

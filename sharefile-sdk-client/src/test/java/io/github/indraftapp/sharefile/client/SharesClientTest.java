@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.indraftapp.sharefile.client.retry.RetryPolicy;
 import io.github.indraftapp.sharefile.core.model.Contact;
 import io.github.indraftapp.sharefile.core.model.Item;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
@@ -60,6 +61,36 @@ class SharesClientTest {
               .get(1)
               .body()
               .contains("\"Recipients\":[{\"User\":{\"Email\":\"b@example.com\"}}]"));
+    }
+  }
+
+  @Test
+  void createSendShareAndCreateRequestShareSupportRetryPolicyOverloads() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.Share\",\"Id\":\"share-1\",\"Title\":\"Send\"}");
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.Share\",\"Id\":\"share-2\",\"Title\":\"Request\"}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      SendShareRequest send = new SendShareRequest();
+      send.setRecipients(List.of("a@example.com"));
+      send.setItems(List.of("item-1"));
+      RequestShareRequest request = new RequestShareRequest();
+      request.setRecipients(List.of("b@example.com"));
+      request.setFolderID("folder-1");
+
+      Share sendShare =
+          context.sharesClient().createSendShare(send, RetryPolicy.retryOnServerError(1));
+      Share requestShare =
+          context.sharesClient().createRequestShare(request, RetryPolicy.retryOnServerError(1));
+
+      assertEquals("share-1", sendShare.getId());
+      assertEquals("share-2", requestShare.getId());
+      assertEquals("POST", transport.requests.get(0).method());
+      assertEquals("POST", transport.requests.get(1).method());
     }
   }
 
@@ -130,6 +161,44 @@ class SharesClientTest {
       assertEquals("PATCH", transport.getLastRequest().method());
       assertTrue(transport.getLastRequest().body().contains("\"Title\":\"Updated\""));
       assertFalse(transport.getLastRequest().body().contains("\"Body\":null"));
+    }
+  }
+
+  @Test
+  void updateSupportsRetryPolicyOverload() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.Share\",\"Id\":\"share-1\",\"Title\":\"Updated\"}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      Share share = new Share();
+      share.setTitle("Updated");
+
+      Share updated =
+          context.sharesClient().update("share-1", share, RetryPolicy.retryOnServerError(1));
+
+      assertEquals("Updated", updated.getTitle());
+      assertEquals("PATCH", transport.getLastRequest().method());
+    }
+  }
+
+  @Test
+  void sendNotificationSupportsRetryPolicyOverload() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(204, "");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      ShareNotificationRequest notification = new ShareNotificationRequest();
+      notification.setRecipients(List.of("c@example.com"));
+      notification.setBody("hello");
+
+      context
+          .sharesClient()
+          .sendNotification("share-1", notification, RetryPolicy.retryOnServerError(1));
+
+      assertEquals("POST", transport.getLastRequest().method());
+      assertTrue(transport.getLastRequest().body().contains("\"Recipients\":[\"c@example.com\"]"));
     }
   }
 }

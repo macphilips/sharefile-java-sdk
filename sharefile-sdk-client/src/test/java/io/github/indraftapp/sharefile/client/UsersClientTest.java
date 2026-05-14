@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.indraftapp.sharefile.client.retry.RetryPolicy;
 import io.github.indraftapp.sharefile.core.exception.ShareFileNotFoundException;
 import io.github.indraftapp.sharefile.core.model.Group;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
+import io.github.indraftapp.sharefile.core.model.OperationResult;
 import io.github.indraftapp.sharefile.core.model.User;
 import io.github.indraftapp.sharefile.core.model.response.UserPreferences;
 import io.github.indraftapp.sharefile.core.model.response.UserSecurity;
@@ -139,12 +141,61 @@ class UsersClientTest {
       User update = new User();
       update.setEmail("person@example.com");
 
-      User saved = context.usersClient().update("user-1", update);
+      OperationResult<User> saved = context.usersClient().update("user-1", update);
 
-      assertEquals("person@example.com", saved.getEmail());
+      assertEquals("person@example.com", saved.getEntityOrThrow().getEmail());
       assertEquals("PATCH", transport.getLastRequest().method());
       assertTrue(transport.getLastRequest().body().contains("\"Email\":\"person@example.com\""));
       assertFalse(transport.getLastRequest().body().contains("\"FirstName\":null"));
+    }
+  }
+
+  @Test
+  void createAndUpdateSupportRetryPolicyOverloads() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.User\",\"Id\":\"user-1\",\"Email\":\"created@example.com\"}");
+    transport.enqueueJsonResponse(
+        200,
+        "{\"odata.type\":\"ShareFile.Api.Models.User\",\"Id\":\"user-1\",\"Email\":\"updated@example.com\"}");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      User user = new User();
+      user.setEmail("created@example.com");
+
+      User created = context.usersClient().create(user, RetryPolicy.retryOnServerError(1));
+
+      User updatedUser = new User();
+      updatedUser.setEmail("updated@example.com");
+      OperationResult<User> updated =
+          context.usersClient().update("user-1", updatedUser, RetryPolicy.retryOnServerError(1));
+
+      assertEquals("created@example.com", created.getEmail());
+      assertEquals("updated@example.com", updated.getEntityOrThrow().getEmail());
+      assertEquals("POST", transport.requests.get(0).method());
+      assertEquals("PATCH", transport.requests.get(1).method());
+    }
+  }
+
+  @Test
+  void resetPasswordAndSendWelcomeEmailSupportRetryPolicyOverloads() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(204, "");
+    transport.enqueueJsonResponse(204, "");
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      RetryPolicy policy = RetryPolicy.retryOnServerError(1);
+
+      context.usersClient().resetPassword("user-1", policy);
+      context.usersClient().sendWelcomeEmail("user-1", policy);
+
+      assertEquals(
+          ClientTestSupport.BASE_URL + "/Users(user-1)/ResetPassword",
+          transport.requests.get(0).uri().toString());
+      assertEquals(
+          ClientTestSupport.BASE_URL + "/Users(user-1)/ResendWelcome",
+          transport.requests.get(1).uri().toString());
     }
   }
 }

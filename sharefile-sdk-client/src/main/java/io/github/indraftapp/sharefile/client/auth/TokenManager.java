@@ -64,7 +64,7 @@ public final class TokenManager implements AutoCloseable {
   private static final double PROACTIVE_REFRESH_RATIO = 0.80;
 
   private final ShareFileConfig config;
-  private final CredentialProvider credentialProvider;
+  private volatile CredentialProvider credentialProvider;
   private final HttpTransport transport;
   private final TokenStore tokenStore;
   private final ObjectMapper objectMapper;
@@ -359,6 +359,59 @@ public final class TokenManager implements AutoCloseable {
     tokenLock.writeLock().lock();
     try {
       return refreshOrAuthenticate(true);
+    } finally {
+      tokenLock.writeLock().unlock();
+    }
+  }
+
+  /**
+   * Forces immediate re-authentication using the currently configured auth source.
+   *
+   * <p>If a refresh token is available, the manager attempts refresh first and falls back to full
+   * re-authentication if refresh fails.
+   *
+   * @return a newly acquired access token
+   * @throws ShareFileAuthenticationException if refresh and full re-authentication both fail
+   */
+  public String reauthenticateWithCurrentSource() {
+    tokenLock.writeLock().lock();
+    try {
+      return refreshOrAuthenticate(true);
+    } finally {
+      tokenLock.writeLock().unlock();
+    }
+  }
+
+  /**
+   * Replaces the active auth source with fixed credentials and performs immediate full
+   * authentication.
+   *
+   * @param credentials replacement credentials to use now and for future full re-authentication
+   * @return a newly acquired access token
+   * @throws ShareFileAuthenticationException if authentication fails
+   */
+  public String reauthenticateWithCredentials(Credentials credentials) {
+    Objects.requireNonNull(credentials, "credentials must not be null");
+    return reauthenticateWithProvider(new StaticCredentialProvider(credentials));
+  }
+
+  /**
+   * Replaces the active auth source with the supplied provider and performs immediate full
+   * authentication.
+   *
+   * @param credentialProvider replacement provider to use now and for future full re-authentication
+   * @return a newly acquired access token
+   * @throws ShareFileAuthenticationException if authentication fails
+   */
+  public String reauthenticateWithProvider(CredentialProvider credentialProvider) {
+    Objects.requireNonNull(credentialProvider, "credentialProvider must not be null");
+    tokenLock.writeLock().lock();
+    try {
+      this.credentialProvider = credentialProvider;
+      OAuthToken token = performFullAuthentication();
+      applyToken(token);
+      log.info("Token authentication succeeded after auth source update");
+      return token.getAccessToken();
     } finally {
       tokenLock.writeLock().unlock();
     }

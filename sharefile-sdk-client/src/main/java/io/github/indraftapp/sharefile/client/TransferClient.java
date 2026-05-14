@@ -150,8 +150,8 @@ public final class TransferClient {
   public UploadHandle uploadAsync(String folderId, Path file, UploadOptions options) {
     UploadOptions resolvedOptions = options == null ? UploadOptions.defaults() : options;
     AtomicBoolean cancelled = new AtomicBoolean(false);
-    ProgressTracker tracker =
-        new ProgressTracker(estimateSize(file), resolvedOptions.getProgressListener());
+    long fileSize = estimateSize(file);
+    ProgressTracker tracker = new ProgressTracker(fileSize, resolvedOptions.getProgressListener());
     CompletableFuture<UploadResult> future =
         CompletableFuture.supplyAsync(
             () ->
@@ -160,7 +160,7 @@ public final class TransferClient {
                     file,
                     null,
                     file.getFileName().toString(),
-                    estimateSize(file),
+                    fileSize,
                     resolvedOptions,
                     tracker,
                     cancelled),
@@ -171,8 +171,8 @@ public final class TransferClient {
   public UploadHandle uploadToShareAsync(String shareId, Path file, UploadOptions options) {
     UploadOptions resolvedOptions = options == null ? UploadOptions.defaults() : options;
     AtomicBoolean cancelled = new AtomicBoolean(false);
-    ProgressTracker tracker =
-        new ProgressTracker(estimateSize(file), resolvedOptions.getProgressListener());
+    long fileSize = estimateSize(file);
+    ProgressTracker tracker = new ProgressTracker(fileSize, resolvedOptions.getProgressListener());
     CompletableFuture<UploadResult> future =
         CompletableFuture.supplyAsync(
             () ->
@@ -181,7 +181,7 @@ public final class TransferClient {
                     file,
                     null,
                     file.getFileName().toString(),
-                    estimateSize(file),
+                    fileSize,
                     resolvedOptions,
                     tracker,
                     cancelled),

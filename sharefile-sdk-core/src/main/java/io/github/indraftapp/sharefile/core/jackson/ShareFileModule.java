@@ -18,6 +18,7 @@ import io.github.indraftapp.sharefile.core.model.ODataFeed;
  * <p>Automatically registered by {@link ShareFileObjectMapper#create()}.
  */
 public final class ShareFileModule extends SimpleModule {
+  private static final long serialVersionUID = 1L;
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   public ShareFileModule() {

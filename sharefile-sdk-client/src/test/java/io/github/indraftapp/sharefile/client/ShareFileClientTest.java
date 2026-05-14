@@ -5,9 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.indraftapp.sharefile.client.http.HttpTransport;
+import io.github.indraftapp.sharefile.client.spi.CredentialProvider;
+import io.github.indraftapp.sharefile.client.spi.Credentials;
+import io.github.indraftapp.sharefile.core.exception.ShareFileAuthenticationException;
 import io.github.indraftapp.sharefile.core.model.HealthStatus;
 import java.lang.reflect.Field;
 import java.util.concurrent.ExecutorService;
@@ -165,6 +169,148 @@ class ShareFileClientTest {
       assertFalse(status.up());
       assertNotNull(status.error());
     }
+  }
+
+  @Test
+  void reauthenticateUsesRefreshWhenAvailable() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "access_token": "refreshed-access",
+          "refresh_token": "refreshed-refresh",
+          "token_type": "bearer",
+          "expires_in": 3600
+        }
+        """);
+
+    try (ShareFileClient client =
+        ShareFileClient.builder()
+            .subdomain("testco")
+            .clientCredentials("client-id", "client-secret")
+            .accessToken("seeded-token", "seeded-refresh")
+            .httpTransport(transport)
+            .build()) {
+      client.reauthenticate();
+    }
+
+    assertEquals(1, transport.requests.size());
+    assertTrue(transport.getLastRequest().body().contains("grant_type=refresh_token"));
+  }
+
+  @Test
+  void reauthenticateWithCredentialsSwitchesToNewStaticAuthSource() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "access_token": "rotated-access",
+          "refresh_token": "rotated-refresh",
+          "token_type": "bearer",
+          "expires_in": 3600
+        }
+        """);
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "access_token": "second-access",
+          "refresh_token": "second-refresh",
+          "token_type": "bearer",
+          "expires_in": 3600
+        }
+        """);
+
+    try (ShareFileClient client =
+        ShareFileClient.builder()
+            .subdomain("testco")
+            .clientCredentials("client-id", "client-secret")
+            .accessToken("seeded-token", null)
+            .httpTransport(transport)
+            .build()) {
+      client.reauthenticate(
+          Credentials.builder()
+              .clientCredentials("rotated-client-id", "rotated-client-secret")
+              .passwordGrant("rotated-user@example.com", "rotated-pass")
+              .build());
+      client.reauthenticate();
+    }
+
+    assertEquals(2, transport.requests.size());
+    assertTrue(transport.requests.get(0).body().contains("client_id=rotated-client-id"));
+    assertTrue(transport.requests.get(1).body().contains("client_id=rotated-client-id"));
+  }
+
+  @Test
+  void reauthenticateWithProviderSwitchesToDynamicAuthSource() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "access_token": "provider-access",
+          "refresh_token": "provider-refresh",
+          "token_type": "bearer",
+          "expires_in": 3600
+        }
+        """);
+
+    CredentialProvider provider =
+        () ->
+            Credentials.builder()
+                .clientCredentials("provider-client-id", "provider-client-secret")
+                .passwordGrant("provider-user@example.com", "provider-pass")
+                .build();
+
+    try (ShareFileClient client =
+        ShareFileClient.builder()
+            .subdomain("testco")
+            .clientCredentials("client-id", "client-secret")
+            .accessToken("seeded-token", null)
+            .httpTransport(transport)
+            .build()) {
+      client.reauthenticate(provider);
+    }
+
+    assertEquals(1, transport.requests.size());
+    assertTrue(transport.getLastRequest().body().contains("client_id=provider-client-id"));
+  }
+
+  @Test
+  void seededTokenOnlyReauthenticateFailsButCredentialsRecoveryWorks() {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+
+    try (ShareFileClient client =
+        ShareFileClient.builder()
+            .subdomain("testco")
+            .clientCredentials("client-id", "client-secret")
+            .accessToken("seeded-token", null)
+            .httpTransport(transport)
+            .build()) {
+      assertThrows(ShareFileAuthenticationException.class, client::reauthenticate);
+
+      transport.enqueueJsonResponse(
+          200,
+          """
+          {
+            "access_token": "recovered-access",
+            "refresh_token": "recovered-refresh",
+            "token_type": "bearer",
+            "expires_in": 3600
+          }
+          """);
+
+      client.reauthenticate(
+          Credentials.builder()
+              .clientCredentials("replacement-client-id", "replacement-client-secret")
+              .passwordGrant("replacement-user@example.com", "replacement-pass")
+              .build());
+    }
+
+    assertEquals(1, transport.requests.size());
+    assertTrue(transport.getLastRequest().body().contains("client_id=replacement-client-id"));
   }
 
   @Test

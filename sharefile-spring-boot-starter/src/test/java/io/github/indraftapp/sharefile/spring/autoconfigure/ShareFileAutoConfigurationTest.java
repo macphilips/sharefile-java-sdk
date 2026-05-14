@@ -147,6 +147,33 @@ class ShareFileAutoConfigurationTest {
             });
   }
 
+  @Test
+  void autoConfiguredClientExposesRuntimeReauthenticationApi() {
+    contextRunner
+        .withPropertyValues(
+            "sharefile.subdomain=testco",
+            "sharefile.auth.client-id=client-id",
+            "sharefile.auth.client-secret=client-secret",
+            "sharefile.auth.grant-type=authorization_code",
+            "sharefile.auth.code=auth-code")
+        .run(
+            context -> {
+              ShareFileClient client = context.getBean(ShareFileClient.class);
+              assertThat(client).isNotNull();
+              assertThat(findMethod("reauthenticate")).isNotNull();
+              assertThat(findMethod("reauthenticate", Credentials.class)).isNotNull();
+              assertThat(findMethod("reauthenticate", CredentialProvider.class)).isNotNull();
+            });
+  }
+
+  private static java.lang.reflect.Method findMethod(String name, Class<?>... parameterTypes) {
+    try {
+      return ShareFileClient.class.getMethod(name, parameterTypes);
+    } catch (ReflectiveOperationException e) {
+      throw new AssertionError("Missing method " + name, e);
+    }
+  }
+
   private static Object readField(Object target, String name) {
     try {
       Field field = target.getClass().getDeclaredField(name);
