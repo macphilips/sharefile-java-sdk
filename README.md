@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/macphilips/sharefile-java-sdk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/macphilips/sharefile-java-sdk/actions/workflows/ci.yml)
 ![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/macphilips/sharefile-java-sdk/main/.github/badges/jacoco.json)
+![Branch Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/macphilips/sharefile-java-sdk/main/.github/badges/jacoco-branches.json)
 
 Framework-agnostic Java 17 SDK for the ShareFile REST API v3, with an optional Spring Boot 3 starter and a shared test-support module.
 
@@ -93,9 +94,10 @@ Aggregate JaCoCo coverage is generated at:
 - XML: `build/reports/jacoco/test/jacocoTestReport.xml`
 - HTML: `build/reports/jacoco/test/html/index.html`
 
-The coverage badge source file is:
+The coverage badge source files are:
 
 - `.github/badges/jacoco.json`
+- `.github/badges/jacoco-branches.json`
 
 ## Basic Usage
 

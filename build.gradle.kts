@@ -3,6 +3,7 @@ import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.plugins.JacocoPluginExtension
 import org.gradle.testing.jacoco.tasks.JacocoReport
+import org.w3c.dom.Node
 import org.w3c.dom.Element
 import java.math.BigDecimal
 import javax.xml.parsers.DocumentBuilderFactory
@@ -229,14 +230,15 @@ tasks.register<JacocoReport>("jacocoTestReport") {
 
 tasks.register("generateCoverageBadge") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    description = "Generates the JaCoCo badge JSON from the aggregate XML report."
+    description = "Generates the JaCoCo badge JSON files from the aggregate XML report."
     dependsOn("jacocoTestReport")
 
     val reportFile = layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml")
-    val badgeFile = layout.projectDirectory.file(".github/badges/jacoco.json")
+    val instructionBadgeFile = layout.projectDirectory.file(".github/badges/jacoco.json")
+    val branchBadgeFile = layout.projectDirectory.file(".github/badges/jacoco-branches.json")
 
     inputs.file(reportFile)
-    outputs.file(badgeFile)
+    outputs.files(instructionBadgeFile, branchBadgeFile)
 
     doLast {
         val xmlFile = reportFile.get().asFile
@@ -248,45 +250,66 @@ tasks.register("generateCoverageBadge") {
             setFeature("http://xml.org/sax/features/external-parameter-entities", false)
         }
         val document = factory.newDocumentBuilder().parse(xmlFile)
-        val counters = document.getElementsByTagName("counter")
+        val report = document.documentElement
 
-        var covered = 0L
-        var missed = 0L
-        for (index in 0 until counters.length) {
-            val element = counters.item(index) as Element
-            if (element.getAttribute("type") == "INSTRUCTION") {
-                covered = element.getAttribute("covered").toLong()
-                missed = element.getAttribute("missed").toLong()
-                break
+        val reportChildren = report.childNodes
+        fun writeBadge(counterType: String, label: String, outputFile: java.io.File) {
+            var covered = 0L
+            var missed = 0L
+            for (index in 0 until reportChildren.length) {
+                val node = reportChildren.item(index)
+                if (node.nodeType != Node.ELEMENT_NODE || node.nodeName != "counter") {
+                    continue
+                }
+                val element = node as Element
+                if (element.getAttribute("type") == counterType) {
+                    covered = element.getAttribute("covered").toLong()
+                    missed = element.getAttribute("missed").toLong()
+                    break
+                }
             }
+            require(covered > 0 || missed > 0) {
+                "Aggregate $counterType counter not found at report root in ${xmlFile.absolutePath}"
+            }
+
+            val total = covered + missed
+            val percentage =
+                if (total == 0L) {
+                    BigDecimal.ZERO
+                } else {
+                    BigDecimal.valueOf(covered * 100.0 / total)
+                        .setScale(1, java.math.RoundingMode.HALF_UP)
+                }
+            val color =
+                when {
+                    percentage >= BigDecimal("80.0") -> "brightgreen"
+                    percentage >= BigDecimal("70.0") -> "yellowgreen"
+                    percentage >= BigDecimal("60.0") -> "yellow"
+                    else -> "red"
+                }
+
+            outputFile.parentFile.mkdirs()
+            outputFile.writeText(
+                """
+                {
+                  "schemaVersion": 1,
+                  "label": "$label",
+                  "message": "${percentage.stripTrailingZeros().toPlainString()}%",
+                  "color": "$color"
+                }
+                """.trimIndent() + "\n"
+            )
         }
 
-        val total = covered + missed
-        val percentage =
-            if (total == 0L) {
-                BigDecimal.ZERO
-            } else {
-                BigDecimal.valueOf(covered * 100.0 / total).setScale(1, java.math.RoundingMode.HALF_UP)
-            }
-        val color =
-            when {
-                percentage >= BigDecimal("80.0") -> "brightgreen"
-                percentage >= BigDecimal("70.0") -> "yellowgreen"
-                percentage >= BigDecimal("60.0") -> "yellow"
-                else -> "red"
-            }
-
-        val output = badgeFile.asFile
-        output.parentFile.mkdirs()
-        output.writeText(
-            """
-            {
-              "schemaVersion": 1,
-              "label": "coverage",
-              "message": "${percentage.stripTrailingZeros().toPlainString()}%",
-              "color": "$color"
-            }
-            """.trimIndent() + "\n"
+        writeBadge(
+            counterType = "INSTRUCTION",
+            label = "coverage",
+            outputFile = instructionBadgeFile.asFile
+        )
+        writeBadge(
+            counterType = "BRANCH",
+            label = "branch coverage",
+            outputFile = branchBadgeFile.asFile
         )
     }
 }
