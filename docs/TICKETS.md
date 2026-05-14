@@ -15,6 +15,7 @@ Individual ticket files are in [`docs/tickets/`](tickets/).
 | **v0.1 — MVP** | SF-01 → SF-14, SF-19 | Auth, OData, streaming HTTP, all Tier 1 resource clients, TransferClient, metrics SPI, builder, typed exceptions, WireMock tests |
 | **v0.2**       | SF-15, SF-16         | Pagination, Tier 2 resource clients (Groups, Webhooks, Sessions)                                                                 |
 | **v0.3**       | SF-17, SF-18         | Spring Boot starter, Micrometer metrics, health indicator                                                                        |
+| **v0.4**       | SF-21 → SF-29        | Endpoint coverage deltas from API_ENDPOINT_COVERAGE.md without duplicating existing tickets                                      |
 | **v1.0**       | SF-19, SF-20         | Test infrastructure, CI/CD, Maven Central publishing                                                                             |
 
 ---
@@ -66,8 +67,28 @@ SF-01  Gradle Project Scaffolding
   ├──▶ SF-19  Test Infrastructure & Fixtures
   │      (depends on: SF-14)
   │
-  └──▶ SF-20  CI/CD & Publishing
-       (depends on: SF-01)
+  ├──▶ SF-20  CI/CD & Publishing
+  │      (depends on: SF-01)
+  │
+  └──▶ v0.4 Endpoint Coverage Deltas
+       ├──▶ SF-21  Auth Authorization URL Connector
+       │      (depends on: SF-07, SF-14)
+       ├──▶ SF-22  Items Endpoint Coverage Delta
+       │      (depends on: SF-09, SF-12)
+       ├──▶ SF-23  Users Endpoint Coverage Delta
+       │      (depends on: SF-11)
+       ├──▶ SF-24  Shares Endpoint Coverage Delta
+       │      (depends on: SF-11, SF-12)
+       ├──▶ SF-25  Accounts Client Endpoint Coverage
+       │      (depends on: SF-14)
+       ├──▶ SF-26  AccessControls Endpoint Coverage Delta
+       │      (depends on: SF-10)
+       ├──▶ SF-27  AsyncOperations Endpoint Coverage Delta
+       │      (depends on: SF-10)
+       ├──▶ SF-28  Zones Client Endpoint Coverage
+       │      (depends on: SF-14)
+       └──▶ SF-29  Devices Client
+              (depends on: SF-14)
 ```
 
 ---
@@ -970,7 +991,11 @@ Implement `GroupsClient`, `WebhookSubscriptionsClient`, and `SessionsClient`.
 
 ### Requirements
 
-1. **GroupsClient** per §6.8: `getById`, `list`, `create`, `update`, `delete`, `getMembers`, `addMember`, `removeMember`.
+1. **GroupsClient** per §6.8 and API_REFERENCE.md: `getById`, `list`, `create`, `update`, `delete`, `getMembers`, `addMember`, `removeMember`, `exportContacts`.
+
+   - `removeMember` must map to the exact API reference endpoint: `DELETE /sf/v3/Groups({id})/Contacts`.
+   - `exportContacts` must map to: `GET /sf/v3/Groups({id})/ExportDocument`.
+   - `UsersClient#getGroups(userId)` already covers `GET /sf/v3/Users({id})/Groups`; do not duplicate that method in `GroupsClient` unless a later ticket explicitly asks for a convenience alias.
 
 2. **WebhookSubscriptionsClient** per §6.8: `getById`, `list`, `create`, `delete`.
 
@@ -982,6 +1007,8 @@ Implement `GroupsClient`, `WebhookSubscriptionsClient`, and `SessionsClient`.
 
 - All methods map to correct endpoints
 - GroupsClient member management uses nested URLs
+- GroupsClient exposes `GET /Groups({id})/ExportDocument`
+- GroupsClient contact removal matches the exact API reference path
 - WebhookSubscriptions CRUD works
 
 ---
@@ -1098,3 +1125,233 @@ Create GitHub Actions workflows for CI, snapshots, and releases.
 - CI runs on PRs
 - Snapshots publish on merge to main
 - Release signs, publishes, tags, and bumps
+
+---
+
+## SF-21: Auth Authorization URL Connector
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-07, SF-14
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §1.1, API_ENDPOINT_COVERAGE.md Authentication
+
+### Goal
+
+Expose a public SDK connector for constructing the ShareFile OAuth authorization URL.
+
+### Requirements
+
+1. Add a public auth-facing API that builds `GET https://secure.sharefile.com/oauth/authorize`.
+2. Support `response_type`, `client_id`, `redirect_uri`, and `state`.
+3. Default `response_type` to `code` unless the caller explicitly chooses another documented value.
+4. Do not perform network I/O; return a URI suitable for redirecting a user.
+5. Preserve existing token exchange, password grant, refresh-token, bearer-token, and HMAC behavior.
+
+### Acceptance Criteria
+
+- Unit tests assert the generated URI host, path, and encoded query parameters
+- The API does not call `CredentialProvider.resolve()`
+- Existing authentication tests continue to pass
+
+---
+
+## SF-22: Items Endpoint Coverage Delta
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-09, SF-12
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §3, API_ENDPOINT_COVERAGE.md Items
+
+### Goal
+
+Add public `ItemsClient` and transfer APIs for Items endpoints that are missing after SF-09 and SF-12.
+
+### Requirements
+
+1. Add exact GET connectors for `/Items`, `/ConnectorGroups({id})/Children`, `/Items({id})/WebView`, `/Items({id})/ProtocolLinks({platform})`, and `/Items({id})/Redirection`.
+2. Add exact POST connectors for symbolic links, connector-group children, advanced simple search, bulk delete permanently, web app links, template association removal, versioning violation checks, previewability checks, and legacy `/Items({folderId})/Upload`.
+3. Add exact PATCH connectors for `/Items/Link({id})`, `/Items/Note({id})`, and `/Items/SymbolicLink({id})`.
+4. Keep existing non-exact permanent delete and `Upload2` behavior intact while adding exact API reference connectors.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method and path for every added endpoint family
+- Existing Items and Transfer tests continue to pass
+- No existing public method is removed or silently remapped to a different endpoint
+
+---
+
+## SF-23: Users Endpoint Coverage Delta
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-11
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §4, API_ENDPOINT_COVERAGE.md Users
+
+### Goal
+
+Add public `UsersClient` APIs for Users endpoints that are missing after SF-11, without removing existing convenience methods.
+
+### Requirements
+
+1. Add exact lookup, client-user, employee, and role connectors, including `GET /Users?emailaddress={email}`, `/UsersForFolder`, `/Users/AccountUser`, and `/Users({id})/Roles`.
+2. Add exact folder, FileBox, preference, security, shared-folder, and user-info connectors.
+3. Add exact password, notification, client bulk-delete, employee downgrade, and first-login confirmation connectors.
+4. Add network/sharepoint connector, email-address, web-app-link, inbox, sent-message, and manage-user link connectors.
+5. Keep `getByEmail`, `resetPassword(id)`, and `sendWelcomeEmail(id)` for backward compatibility, but add exact API reference methods for the documented paths.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method, path, and query parameters for each endpoint family
+- Existing SF-11 UsersClient behavior remains backward compatible
+- Request/response types use existing core models where possible
+
+---
+
+## SF-24: Shares Endpoint Coverage Delta
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-11, SF-12
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §5, API_ENDPOINT_COVERAGE.md Shares
+
+### Goal
+
+Add public `SharesClient` and transfer APIs for Shares endpoints that are missing after SF-11 and SF-12.
+
+### Requirements
+
+1. Add recipient and item detail connectors, including single recipient, create recipient, single item, thumbnail, and protocol links.
+2. Add recipient download connectors for `/DownloadWithAlias` and recipient bulk download.
+3. Add alias, send callback, exact send/request/resend, redirection, inbox, and sent-message content connectors.
+4. Keep `createSendShare` and `createRequestShare` against `POST /Shares` for backward compatibility while adding exact `/Shares/Send` and `/Shares/Request` connectors.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method, path, and query parameters for each endpoint family
+- Existing SF-11 and SF-12 Shares behavior remains backward compatible
+- Download endpoints that return redirect specifications preserve streaming concerns in `TransferClient`
+
+---
+
+## SF-25: Accounts Client Endpoint Coverage
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-14
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §6, API_ENDPOINT_COVERAGE.md Accounts
+
+### Goal
+
+Expand `AccountsClient` from current-account lookup to full API reference endpoint coverage.
+
+### Requirements
+
+1. Add account lookup, branding, preferences, mobile security, and product defaults connectors.
+2. Add employee, client, address book, and email account list connectors.
+3. Add SSO and login/folder access-control-domain connectors.
+4. Add WebPop, subdomain, Outlook, tenant, tenant zone usage, tenant zones, and admin web app connectors.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method, path, and query parameters for each endpoint family
+- `ShareFileClient#checkHealth` continues to use current-account lookup unchanged
+- Request/response types are narrow and documented when the API reference does not map to existing models
+
+---
+
+## SF-26: AccessControls Endpoint Coverage Delta
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-10
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §8, API_ENDPOINT_COVERAGE.md AccessControls
+
+### Goal
+
+Add the remaining AccessControls endpoints missing after SF-10.
+
+### Requirements
+
+1. Add `POST /sf/v3/AccessControls/BulkDeleteForPrincipal?principalId={principalId}`.
+2. Add `POST /sf/v3/Items({id})/AccessControls/NotifyUsersPreview`.
+3. Keep existing `bulkDelete(itemId, principalIds)` and `notifyUsers(itemId, ...)` behavior intact.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method, path, and query parameters for both endpoints
+- Existing SF-10 AccessControls tests continue to pass
+
+---
+
+## SF-27: AsyncOperations Endpoint Coverage Delta
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-10
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §12, API_ENDPOINT_COVERAGE.md AsyncOperations
+
+### Goal
+
+Add the AsyncOperations endpoints documented in the API reference but missing after SF-10.
+
+### Requirements
+
+1. Add exact GET connectors for `GetByBatch`, `GetBatch`, and `GetByFolder`.
+2. Add exact mutation connectors for operation cancel, batch cancel, operation state update, and operation delete.
+3. Keep existing `list()` and `awaitCompletion()` behavior intact even though `GET /AsyncOperations` is not documented in API_REFERENCE.md.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method and path for every added endpoint
+- Existing polling behavior continues to use `GET /AsyncOperations({id})`
+
+---
+
+## SF-28: Zones Client Endpoint Coverage
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-14
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §9, API_ENDPOINT_COVERAGE.md Zones
+
+### Goal
+
+Implement `ZonesClient` endpoint coverage for the API reference.
+
+### Requirements
+
+1. Replace the placeholder client with explicit methods for Zones CRUD.
+2. Add reset secret, tenants, add tenant, remove tenant, metadata list, metadata create/update, and metadata delete connectors.
+3. Keep `ShareFileClient#zones()` as the public accessor.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method, path, and query parameters for each endpoint family
+- `ShareFileClient#zones()` returns the implemented client
+
+---
+
+## SF-29: Devices Client
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-14
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §10, API_ENDPOINT_COVERAGE.md Devices
+
+### Goal
+
+Add a public `DevicesClient` and wire it into `ShareFileClient`.
+
+### Requirements
+
+1. Add exact methods for current-user devices, device by ID, devices for user, delete device for user, wipe, lock, and unlock.
+2. Add `ShareFileClient#devices()`.
+3. Wire `DevicesClient` in `ShareFileClientBuilder`.
+4. Use existing `Device` and `DeviceUser` models where possible.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method and path for every endpoint
+- `ShareFileClient#devices()` is available and returns a configured client
+- Existing builder lifecycle tests are updated for the new client accessor
