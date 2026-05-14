@@ -469,11 +469,12 @@ public final class TransferClient {
                   : specification.getResumeIndex().intValue(),
               tracker.snapshot().getBytesTransferred());
         }
-        byte[] responseBody = response.bodyBytes(10 * 1024 * 1024);
-        if (responseBody.length == 0 && specification.getFinishUri() != null) {
+        if (specification.getFinishUri() != null) {
+          response.bodyBytes(10 * 1024 * 1024);
           return finishUpload(
               specification.getFinishUri(), tracker.snapshot().getBytesTransferred());
         }
+        byte[] responseBody = response.bodyBytes(10 * 1024 * 1024);
         return objectMapper.readValue(responseBody, UploadResult.class);
       }
     } catch (IOException e) {

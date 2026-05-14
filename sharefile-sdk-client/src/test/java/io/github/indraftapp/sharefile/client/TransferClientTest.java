@@ -77,6 +77,44 @@ class TransferClientTest {
   }
 
   @Test
+  void standardUploadWithFinishUriFinalizesAfterPlainTextStorageResponse() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Standard",
+          "ChunkUri": "https://storage.example.com/upload",
+          "FinishUri": "https://storage.example.com/finish"
+        }
+        """);
+    transport.enqueueResponse(200, "ERROR ".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "ItemId": "item-1",
+          "FileName": "hello.txt",
+          "FileSize": 5
+        }
+        """);
+
+    Path file = Files.writeString(tempDir.resolve("hello.txt"), "hello", StandardCharsets.UTF_8);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      UploadResult result =
+          context.transferClient().upload("folder-1", file, UploadOptions.defaults());
+
+      assertEquals("item-1", result.getItemId());
+      assertEquals(3, transport.requests.size());
+      assertEquals(
+          "https://storage.example.com/upload", transport.requests.get(1).uri().toString());
+      assertEquals(
+          "https://storage.example.com/finish", transport.requests.get(2).uri().toString());
+    }
+  }
+
+  @Test
   void threadedUploadUsesMultipleChunkPostsAndFinishUri() throws Exception {
     ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
     transport.enqueueJsonResponse(
