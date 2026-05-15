@@ -125,6 +125,70 @@ ShareFileClient client = ShareFileClient.builder()
     .build();
 ```
 
+## Upload Examples
+
+File-backed uploads can use ShareFile's threaded upload protocol with parallel chunk uploads:
+
+```java
+UploadResult result = client.transfers().upload(
+    "fo-folder",
+    Path.of("/tmp/report.pdf"),
+    UploadOptions.builder()
+        .overwrite(true)
+        .threadCount(4)
+        .build());
+```
+
+InputStream uploads are supported when you know the file name and exact byte size. They use
+ShareFile's threaded upload protocol by default, but chunks are uploaded sequentially because a
+plain `InputStream` is forward-only. Use the `Path` overload when you need parallel chunk uploads.
+
+```java
+Path audio = Path.of("/tmp/audio.wav");
+
+try (InputStream in = Files.newInputStream(audio)) {
+  UploadResult result = client.transfers().upload(
+      "fo-folder",
+      in,
+      "audio.wav",
+      Files.size(audio),
+      UploadOptions.builder()
+          .progressListener((sent, total) -> {
+            System.out.printf("Uploaded %d of %d bytes%n", sent, total);
+          })
+          .build());
+}
+```
+
+For non-blocking uploads, use `uploadAsync`. The call returns an `UploadHandle` immediately; for
+stream-backed uploads, chunking still runs sequentially in the background.
+
+```java
+UploadHandle handle = client.transfers().uploadAsync(
+    "fo-folder",
+    inputStream,
+    "audio.wav",
+    sizeInBytes,
+    UploadOptions.builder()
+        .callback(new UploadCallback() {
+          @Override
+          public void onProgress(TransferProgress progress) {
+            System.out.printf("Uploaded %d bytes%n", progress.getBytesTransferred());
+          }
+
+          @Override
+          public void onCompleted(UploadResult result) {
+            System.out.printf("Uploaded item id: %s%n", result.getItemId());
+          }
+
+          @Override
+          public void onFailed(Throwable error) {
+            error.printStackTrace();
+          }
+        })
+        .build());
+```
+
 ## Spring Boot Starter
 
 The starter uses the `sharefile.*` property prefix.

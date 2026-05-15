@@ -57,9 +57,7 @@ class TransferClientTest {
           context
               .transferClient()
               .upload(
-                  "folder-1",
-                  file,
-                  UploadOptions.builder().method(UploadMethod.STANDARD).build());
+                  "folder-1", file, UploadOptions.builder().method(UploadMethod.STANDARD).build());
 
       assertNull(result.getItemId());
       assertEquals("hello.txt", result.getFileName());
@@ -99,9 +97,7 @@ class TransferClientTest {
           context
               .transferClient()
               .upload(
-                  "folder-1",
-                  file,
-                  UploadOptions.builder().method(UploadMethod.STANDARD).build());
+                  "folder-1", file, UploadOptions.builder().method(UploadMethod.STANDARD).build());
 
       assertNull(result.getItemId());
       assertEquals("hello.txt", result.getFileName());
@@ -132,9 +128,7 @@ class TransferClientTest {
           context
               .transferClient()
               .upload(
-                  "folder-1",
-                  file,
-                  UploadOptions.builder().method(UploadMethod.STANDARD).build());
+                  "folder-1", file, UploadOptions.builder().method(UploadMethod.STANDARD).build());
 
       assertNull(result.getItemId());
       assertEquals("hello.txt", result.getFileName());
@@ -215,7 +209,8 @@ class TransferClientTest {
           "https://storage.example.com/chunk?index=0&byteOffset=0&hash=5d41402abc4b2a76b9719d911017c592&fmt=json",
           transport.requests.get(1).uri().toString());
       assertEquals(
-          "https://storage.example.com/finish?fmt=json", transport.requests.get(2).uri().toString());
+          "https://storage.example.com/finish?fmt=json",
+          transport.requests.get(2).uri().toString());
     }
   }
 
@@ -234,7 +229,8 @@ class TransferClientTest {
     transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
     transport.enqueueResponse(200, "ERROR:finalization failed".getBytes(StandardCharsets.UTF_8));
 
-    Path file = Files.write(tempDir.resolve("threaded.bin"), "abcde".getBytes(StandardCharsets.UTF_8));
+    Path file =
+        Files.write(tempDir.resolve("threaded.bin"), "abcde".getBytes(StandardCharsets.UTF_8));
 
     try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
       ShareFileUploadFinalizationException exception =
@@ -330,7 +326,8 @@ class TransferClientTest {
           transport.requests.get(1).uri().toString());
       assertEquals("hello", transport.requests.get(1).body());
       assertEquals(
-          "https://storage.example.com/finish?fmt=json", transport.requests.get(2).uri().toString());
+          "https://storage.example.com/finish?fmt=json",
+          transport.requests.get(2).uri().toString());
     }
   }
 
@@ -437,7 +434,8 @@ class TransferClientTest {
           "https://storage.example.com/chunk?index=1&byteOffset=5&hash=57c48dcd266eadf089325affe125151f&fmt=json",
           transport.requests.get(2).uri().toString());
       assertEquals(
-          "https://storage.example.com/finish?fmt=json", transport.requests.get(3).uri().toString());
+          "https://storage.example.com/finish?fmt=json",
+          transport.requests.get(3).uri().toString());
     }
   }
 
@@ -550,23 +548,31 @@ class TransferClientTest {
         200,
         """
         {
-          "Method": "Streamed",
-          "ChunkUri": "https://storage.example.com/upload"
+          "Method": "Threaded",
+          "ChunkUri": "https://storage.example.com/upload",
+          "FinishUri": "https://storage.example.com/finish"
         }
         """);
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
     transport.enqueueJsonResponse(
         200,
         """
         {
-          "ItemId": "item-4",
-          "FileName": "async.txt",
-          "FileSize": 11
+          "value": [
+            {
+              "id": "item-4",
+              "filename": "async.txt",
+              "size": 11
+            }
+          ],
+          "error": false
         }
         """);
 
     Path file =
         Files.writeString(tempDir.resolve("async.txt"), "hello world", StandardCharsets.UTF_8);
     List<Long> progressEvents = new CopyOnWriteArrayList<>();
+    List<String> callbackEvents = new CopyOnWriteArrayList<>();
 
     try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
       UploadHandle handle =
@@ -576,14 +582,174 @@ class TransferClientTest {
                   "folder-1",
                   file,
                   UploadOptions.builder()
+                      .method(UploadMethod.THREADED)
+                      .chunkSizeBytes(11)
+                      .threadCount(1)
                       .progressListener((sent, total) -> progressEvents.add(sent))
+                      .callback(
+                          new UploadCallback() {
+                            @Override
+                            public void onStarted(TransferProgress progress) {
+                              callbackEvents.add("started:" + progress.getState());
+                            }
+
+                            @Override
+                            public void onProgress(TransferProgress progress) {
+                              callbackEvents.add("progress:" + progress.getBytesTransferred());
+                            }
+
+                            @Override
+                            public void onCompleted(UploadResult result) {
+                              callbackEvents.add("completed:" + result.getItemId());
+                            }
+                          })
                       .build());
 
       UploadResult result = handle.awaitOrThrow(java.time.Duration.ofSeconds(5));
 
       assertEquals("item-4", result.getItemId());
       assertFalse(progressEvents.isEmpty());
+      assertTrue(callbackEvents.contains("started:" + TransferState.IN_PROGRESS));
+      assertTrue(callbackEvents.contains("progress:11"));
+      assertTrue(callbackEvents.contains("completed:item-4"));
       assertEquals(TransferState.COMPLETED, handle.progress().getState());
+    }
+  }
+
+  @Test
+  void uploadAsyncStreamCompletesAndReturnsFinishItemId() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Threaded",
+          "ChunkUri": "https://storage.example.com/upload",
+          "FinishUri": "https://storage.example.com/finish"
+        }
+        """);
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "value": [
+            {
+              "id": "stream-item-1",
+              "filename": "stream.txt",
+              "size": 11
+            }
+          ],
+          "error": false
+        }
+        """);
+    List<String> callbackEvents = new CopyOnWriteArrayList<>();
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      UploadHandle handle =
+          context
+              .transferClient()
+              .uploadAsync(
+                  "folder-1",
+                  new ByteArrayInputStream("hello world".getBytes(StandardCharsets.UTF_8)),
+                  "stream.txt",
+                  11L,
+                  UploadOptions.builder()
+                      .chunkSizeBytes(11)
+                      .callback(
+                          new UploadCallback() {
+                            @Override
+                            public void onCompleted(UploadResult result) {
+                              callbackEvents.add(result.getItemId());
+                            }
+                          })
+                      .build());
+
+      UploadResult result = handle.awaitOrThrow(Duration.ofSeconds(5));
+
+      assertEquals("stream-item-1", result.getItemId());
+      assertTrue(transport.requests.get(0).body().contains("\"Method\":\"Threaded\""));
+      assertTrue(transport.requests.get(0).body().contains("\"Raw\":true"));
+      assertTrue(transport.requests.get(1).uri().toString().contains("index=0"));
+      assertTrue(transport.requests.get(1).uri().toString().contains("byteOffset=0"));
+      assertTrue(transport.requests.get(1).uri().toString().contains("hash="));
+      assertEquals(
+          "https://storage.example.com/finish?fmt=json",
+          transport.requests.get(2).uri().toString());
+      assertTrue(callbackEvents.contains("stream-item-1"));
+    }
+  }
+
+  @Test
+  void uploadAsyncFailureInvokesCallback() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Threaded",
+          "ChunkUri": "https://storage.example.com/upload",
+          "FinishUri": "https://storage.example.com/finish"
+        }
+        """);
+    transport.enqueueResponse(200, "ERROR:System error occurred".getBytes(StandardCharsets.UTF_8));
+
+    Path file = Files.writeString(tempDir.resolve("failed.txt"), "hello", StandardCharsets.UTF_8);
+    List<String> callbackEvents = new CopyOnWriteArrayList<>();
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      UploadHandle handle =
+          context
+              .transferClient()
+              .uploadAsync(
+                  "folder-1",
+                  file,
+                  UploadOptions.builder()
+                      .method(UploadMethod.THREADED)
+                      .chunkSizeBytes(5)
+                      .threadCount(1)
+                      .callback(
+                          new UploadCallback() {
+                            @Override
+                            public void onFailed(Throwable error) {
+                              callbackEvents.add(error.getClass().getSimpleName());
+                            }
+                          })
+                      .build());
+
+      assertThrows(RuntimeException.class, () -> handle.awaitOrThrow(Duration.ofSeconds(5)));
+      assertTrue(callbackEvents.contains("ShareFileChunkUploadException"));
+    }
+  }
+
+  @Test
+  void uploadAsyncCancellationInvokesCallback() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    RetryConfig retryConfig = RetryConfig.builder().maxRetries(0).build();
+    QueuedExecutor executor = new QueuedExecutor();
+    List<String> callbackEvents = new CopyOnWriteArrayList<>();
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      TransferClient transferClient = newTransferClient(context, transport, retryConfig, executor);
+      Path file = Files.writeString(tempDir.resolve("cancel.txt"), "data", StandardCharsets.UTF_8);
+
+      UploadHandle handle =
+          transferClient.uploadAsync(
+              "folder-1",
+              file,
+              UploadOptions.builder()
+                  .callback(
+                      new UploadCallback() {
+                        @Override
+                        public void onCancelled() {
+                          callbackEvents.add("cancelled");
+                        }
+                      })
+                  .build());
+
+      assertTrue(handle.cancel());
+      assertTrue(callbackEvents.contains("cancelled"));
+      assertEquals(1, executor.submissions);
     }
   }
 
@@ -613,26 +779,7 @@ class TransferClientTest {
     TrackingExecutor executor = new TrackingExecutor();
 
     try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
-      ShareFileHttpClient httpClient =
-          new ShareFileHttpClient(
-              transport,
-              context.tokenManager(),
-              ClientTestSupport.MAPPER,
-              retryConfig,
-              MetricsProvider.noop(),
-              ClientTestSupport.BASE_URL,
-              Duration.ofSeconds(30));
-      TransferClient transferClient =
-          new TransferClient(
-              httpClient,
-              transport,
-              ClientTestSupport.MAPPER,
-              io.github.indraftapp.sharefile.client.config.ShareFileConfig.builder()
-                  .subdomain("testco")
-                  .build(),
-              retryConfig,
-              MetricsProvider.noop(),
-              executor);
+      TransferClient transferClient = newTransferClient(context, transport, retryConfig, executor);
 
       UploadHandle handle = transferClient.uploadAsync("folder-1", file, UploadOptions.defaults());
       UploadResult result = handle.awaitOrThrow(Duration.ofSeconds(5));
@@ -764,6 +911,32 @@ class TransferClientTest {
     return constructor.newInstance(totalBytes, null);
   }
 
+  private static TransferClient newTransferClient(
+      ClientTestSupport.TestContext context,
+      ClientTestSupport.TestTransport transport,
+      RetryConfig retryConfig,
+      java.util.concurrent.ExecutorService executor) {
+    ShareFileHttpClient httpClient =
+        new ShareFileHttpClient(
+            transport,
+            context.tokenManager(),
+            ClientTestSupport.MAPPER,
+            retryConfig,
+            MetricsProvider.noop(),
+            ClientTestSupport.BASE_URL,
+            Duration.ofSeconds(30));
+    return new TransferClient(
+        httpClient,
+        transport,
+        ClientTestSupport.MAPPER,
+        io.github.indraftapp.sharefile.client.config.ShareFileConfig.builder()
+            .subdomain("testco")
+            .build(),
+        retryConfig,
+        MetricsProvider.noop(),
+        executor);
+  }
+
   private static void invokeDownloadInternal(
       TransferClient transferClient,
       String itemId,
@@ -850,6 +1023,42 @@ class TransferClientTest {
     public void execute(Runnable command) {
       submissions++;
       command.run();
+    }
+  }
+
+  private static final class QueuedExecutor extends AbstractExecutorService {
+    private boolean shutdown;
+    private int submissions;
+
+    @Override
+    public void shutdown() {
+      shutdown = true;
+    }
+
+    @Override
+    public List<Runnable> shutdownNow() {
+      shutdown = true;
+      return List.of();
+    }
+
+    @Override
+    public boolean isShutdown() {
+      return shutdown;
+    }
+
+    @Override
+    public boolean isTerminated() {
+      return shutdown;
+    }
+
+    @Override
+    public boolean awaitTermination(long timeout, TimeUnit unit) {
+      return true;
+    }
+
+    @Override
+    public void execute(Runnable command) {
+      submissions++;
     }
   }
 }

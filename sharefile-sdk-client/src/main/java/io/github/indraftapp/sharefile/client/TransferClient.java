@@ -1,7 +1,9 @@
 package io.github.indraftapp.sharefile.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static java.lang.Boolean.TRUE;
+
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.indraftapp.sharefile.client.config.ShareFileConfig;
 import io.github.indraftapp.sharefile.client.http.HttpTransport;
 import io.github.indraftapp.sharefile.client.internal.ShareFileHttpClient;
@@ -27,8 +29,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -42,6 +44,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
@@ -54,9 +57,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
-import static java.lang.Boolean.TRUE;
-
-/** Explicit ShareFile transfer client for upload and download workflows. */
+/**
+ * Explicit ShareFile transfer client for upload and download workflows.
+ *
+ * <p>File-backed uploads can use random access and may upload ShareFile threaded chunks in
+ * parallel. {@link InputStream}-backed uploads are forward-only, so threaded stream uploads are
+ * chunked and retried sequentially while still using ShareFile's threaded protocol to obtain the
+ * final uploaded item id.
+ */
 @Slf4j
 public final class TransferClient {
   private static final long STANDARD_UPLOAD_THRESHOLD_BYTES = 4L * 1024 * 1024;
@@ -103,6 +111,28 @@ public final class TransferClient {
     this.sharesExecutor = new ResourceRequestExecutor(httpClient, "/Shares");
   }
 
+  /**
+   * Uploads a local file to a ShareFile folder and blocks until the upload completes.
+   *
+   * <p>When no method is specified in {@link UploadOptions}, the client uses ShareFile's threaded
+   * upload protocol. File-backed threaded uploads split the file into chunks and can upload chunks
+   * in parallel according to the configured {@code UploadOptions.threadCount}.
+   *
+   * <pre>{@code
+   * UploadResult result = client.transfers().upload(
+   *     "fo-folder",
+   *     Path.of("/tmp/report.pdf"),
+   *     UploadOptions.builder()
+   *         .overwrite(true)
+   *         .threadCount(4)
+   *         .build());
+   * }</pre>
+   *
+   * @param folderId target ShareFile folder id
+   * @param file local file path
+   * @param options upload options, or {@code null} for defaults
+   * @return upload result; item id is populated when ShareFile returns it from finalization
+   */
   public UploadResult upload(String folderId, Path file, UploadOptions options) {
     Objects.requireNonNull(file, "file must not be null");
     UploadOptions resolvedOptions = options == null ? UploadOptions.defaults() : options;
@@ -115,13 +145,46 @@ public final class TransferClient {
           file.getFileName().toString(),
           fileSize,
           resolvedOptions,
-          new ProgressTracker(fileSize, resolvedOptions.getProgressListener()),
+          newUploadTracker(fileSize, resolvedOptions),
           new AtomicBoolean(false));
     } catch (IOException e) {
       throw new ShareFileUploadException("Failed to read upload source file", e, false, -1, 0);
     }
   }
 
+  /**
+   * Uploads bytes from an {@link InputStream} to a ShareFile folder and blocks until completion.
+   *
+   * <p>The stream is consumed and closed by the upload. The {@code fileSize} must be the exact
+   * number of bytes available for the upload because ShareFile requires it during upload
+   * negotiation.
+   *
+   * <p>When no method is specified, the client negotiates ShareFile's threaded upload protocol.
+   * Because a normal {@code InputStream} is forward-only, stream-backed threaded uploads send
+   * chunks sequentially with retryable in-memory chunk buffers. Use the {@link Path} overload when
+   * you need parallel chunk uploads. Explicit {@link UploadMethod#STREAMED} uploads require a
+   * file-backed source and are rejected for this overload.
+   *
+   * <pre>{@code
+   * try (InputStream in = Files.newInputStream(Path.of("/tmp/audio.wav"))) {
+   *   UploadResult result = client.transfers().upload(
+   *       "fo-folder",
+   *       in,
+   *       "audio.wav",
+   *       Files.size(Path.of("/tmp/audio.wav")),
+   *       UploadOptions.builder()
+   *           .progressListener((sent, total) -> log.info("uploaded {}/{}", sent, total))
+   *           .build());
+   * }
+   * }</pre>
+   *
+   * @param folderId target ShareFile folder id
+   * @param stream source stream; consumed and closed by the upload
+   * @param fileName uploaded file name
+   * @param fileSize exact upload size in bytes
+   * @param options upload options, or {@code null} for defaults
+   * @return upload result; item id is populated when ShareFile returns it from finalization
+   */
   public UploadResult upload(
       String folderId, InputStream stream, String fileName, long fileSize, UploadOptions options) {
     UploadOptions resolvedOptions = options == null ? UploadOptions.defaults() : options;
@@ -132,7 +195,7 @@ public final class TransferClient {
         fileName,
         fileSize,
         resolvedOptions,
-        new ProgressTracker(fileSize, resolvedOptions.getProgressListener()),
+        newUploadTracker(fileSize, resolvedOptions),
         new AtomicBoolean(false));
   }
 
@@ -148,18 +211,31 @@ public final class TransferClient {
           file.getFileName().toString(),
           fileSize,
           resolvedOptions,
-          new ProgressTracker(fileSize, resolvedOptions.getProgressListener()),
+          newUploadTracker(fileSize, resolvedOptions),
           new AtomicBoolean(false));
     } catch (IOException e) {
       throw new ShareFileUploadException("Failed to read upload source file", e, false, -1, 0);
     }
   }
 
+  /**
+   * Starts an asynchronous file-backed upload and returns immediately.
+   *
+   * <p>The returned {@link UploadHandle} exposes the backing {@link CompletableFuture}, progress
+   * snapshot, cancellation, and blocking await helpers. Callback methods configured through {@link
+   * UploadOptions.Builder#callback(UploadCallback)} are invoked for lifecycle events.
+   *
+   * @param folderId target ShareFile folder id
+   * @param file local file path
+   * @param options upload options, or {@code null} for defaults
+   * @return async upload handle
+   */
   public UploadHandle uploadAsync(String folderId, Path file, UploadOptions options) {
+    Objects.requireNonNull(file, "file must not be null");
     UploadOptions resolvedOptions = options == null ? UploadOptions.defaults() : options;
     AtomicBoolean cancelled = new AtomicBoolean(false);
     long fileSize = estimateSize(file);
-    ProgressTracker tracker = new ProgressTracker(fileSize, resolvedOptions.getProgressListener());
+    ProgressTracker tracker = newUploadTracker(fileSize, resolvedOptions);
     CompletableFuture<UploadResult> future =
         CompletableFuture.supplyAsync(
             () ->
@@ -173,14 +249,73 @@ public final class TransferClient {
                     tracker,
                     cancelled),
             asyncExecutor);
+    attachUploadCallback(future, resolvedOptions.getCallback(), cancelled);
+    return new UploadHandle(future, tracker.ref(), cancelled);
+  }
+
+  /**
+   * Starts an asynchronous stream-backed upload and returns immediately.
+   *
+   * <p>The upload runs on the client's async executor. Stream-backed threaded uploads are chunked
+   * sequentially in the background because the source stream is forward-only. The stream is
+   * consumed and closed by the background upload task.
+   *
+   * <pre>{@code
+   * UploadHandle handle = client.transfers().uploadAsync(
+   *     "fo-folder",
+   *     inputStream,
+   *     "recording.wav",
+   *     sizeInBytes,
+   *     UploadOptions.builder()
+   *         .callback(new UploadCallback() {
+   *           @Override
+   *           public void onProgress(TransferProgress progress) {
+   *             log.info("uploaded {} bytes", progress.getBytesTransferred());
+   *           }
+   *
+   *           @Override
+   *           public void onCompleted(UploadResult result) {
+   *             log.info("uploaded item {}", result.getItemId());
+   *           }
+   *         })
+   *         .build());
+   * }</pre>
+   *
+   * @param folderId target ShareFile folder id
+   * @param stream source stream; consumed and closed by the upload
+   * @param fileName uploaded file name
+   * @param fileSize exact upload size in bytes
+   * @param options upload options, or {@code null} for defaults
+   * @return async upload handle
+   */
+  public UploadHandle uploadAsync(
+      String folderId, InputStream stream, String fileName, long fileSize, UploadOptions options) {
+    UploadOptions resolvedOptions = options == null ? UploadOptions.defaults() : options;
+    AtomicBoolean cancelled = new AtomicBoolean(false);
+    ProgressTracker tracker = newUploadTracker(fileSize, resolvedOptions);
+    CompletableFuture<UploadResult> future =
+        CompletableFuture.supplyAsync(
+            () ->
+                uploadInternal(
+                    itemsExecutor.entityActionUri(folderId, "Upload2"),
+                    null,
+                    Objects.requireNonNull(stream, "stream must not be null"),
+                    fileName,
+                    fileSize,
+                    resolvedOptions,
+                    tracker,
+                    cancelled),
+            asyncExecutor);
+    attachUploadCallback(future, resolvedOptions.getCallback(), cancelled);
     return new UploadHandle(future, tracker.ref(), cancelled);
   }
 
   public UploadHandle uploadToShareAsync(String shareId, Path file, UploadOptions options) {
+    Objects.requireNonNull(file, "file must not be null");
     UploadOptions resolvedOptions = options == null ? UploadOptions.defaults() : options;
     AtomicBoolean cancelled = new AtomicBoolean(false);
     long fileSize = estimateSize(file);
-    ProgressTracker tracker = new ProgressTracker(fileSize, resolvedOptions.getProgressListener());
+    ProgressTracker tracker = newUploadTracker(fileSize, resolvedOptions);
     CompletableFuture<UploadResult> future =
         CompletableFuture.supplyAsync(
             () ->
@@ -194,6 +329,7 @@ public final class TransferClient {
                     tracker,
                     cancelled),
             asyncExecutor);
+    attachUploadCallback(future, resolvedOptions.getCallback(), cancelled);
     return new UploadHandle(future, tracker.ref(), cancelled);
   }
 
@@ -262,6 +398,46 @@ public final class TransferClient {
             () -> downloadInternal(itemId, target, resolvedOptions, tracker, cancelled),
             asyncExecutor);
     return new DownloadHandle(future, tracker.ref(), cancelled);
+  }
+
+  private ProgressTracker newUploadTracker(long fileSize, UploadOptions options) {
+    return new ProgressTracker(fileSize, options.getProgressListener(), options.getCallback());
+  }
+
+  private void attachUploadCallback(
+      CompletableFuture<UploadResult> future, UploadCallback callback, AtomicBoolean cancelled) {
+    if (callback == null) {
+      return;
+    }
+    future.whenComplete(
+        (result, error) -> {
+          if (error == null) {
+            invokeUploadCallback(() -> callback.onCompleted(result), "completed");
+            return;
+          }
+          Throwable cause = unwrapCompletionError(error);
+          if (cancelled.get() || cause instanceof CancellationException) {
+            invokeUploadCallback(callback::onCancelled, "cancelled");
+            return;
+          }
+          invokeUploadCallback(() -> callback.onFailed(cause), "failed");
+        });
+  }
+
+  private Throwable unwrapCompletionError(Throwable error) {
+    if (error instanceof CompletionException completionException
+        && completionException.getCause() != null) {
+      return completionException.getCause();
+    }
+    return error;
+  }
+
+  private static void invokeUploadCallback(Runnable callback, String event) {
+    try {
+      callback.run();
+    } catch (RuntimeException e) {
+      log.warn("Upload callback {} handler failed", event, e);
+    }
   }
 
   private DownloadSpecification resolveDownloadUrl(String itemId, DownloadOptions options) {
@@ -374,14 +550,7 @@ public final class TransferClient {
       UploadResult result =
           switch (negotiatedMethod) {
             case STANDARD ->
-                uploadStandard(
-                    specification,
-                    file,
-                    stream,
-                    fileName,
-                    fileSize,
-                    tracker,
-                    cancelled);
+                uploadStandard(specification, file, stream, fileName, fileSize, tracker, cancelled);
             case STREAMED ->
                 uploadStreamed(
                     specification,
@@ -393,14 +562,7 @@ public final class TransferClient {
                     cancelled);
             case THREADED ->
                 uploadThreaded(
-                    specification,
-                    file,
-                    stream,
-                    fileName,
-                    fileSize,
-                    options,
-                    tracker,
-                    cancelled);
+                    specification, file, stream, fileName, fileSize, options, tracker, cancelled);
           };
       tracker.complete();
       metrics.recordValue(
@@ -659,7 +821,7 @@ public final class TransferClient {
       ProgressTracker tracker,
       AtomicBoolean cancelled) {
     long offset = (long) chunkIndex * chunkSize;
-      long chunkLength = chunkLength(chunkSize, fileSize, chunkIndex);
+    long chunkLength = chunkLength(chunkSize, fileSize, chunkIndex);
     for (int attempt = 0; attempt <= retryConfig.getMaxRetries(); attempt++) {
       ensureNotCancelled(cancelled, tracker);
       try (InputStream stream = openChunkStream(file, offset, chunkLength)) {
@@ -668,19 +830,15 @@ public final class TransferClient {
         URI chunkUri = uriWithParams(URI.create(specification.getChunkUri()), params);
         HttpTransport.HttpRequest request =
             newStorageRequest(
-                "POST",
-                chunkUri,
-                stream,
-                OptionalLong.of(chunkLength),
-                config.getUploadTimeout());
+                "POST", chunkUri, stream, OptionalLong.of(chunkLength), config.getUploadTimeout());
         try (HttpTransport.HttpResponse response = storageTransport.execute(request)) {
           StorageUploadResponse uploadResponse =
               parseStorageUploadResponse(
-              response,
-              "threaded upload chunk",
-              chunkUri,
-              tracker.snapshot().getBytesTransferred(),
-              false);
+                  response,
+                  "threaded upload chunk",
+                  chunkUri,
+                  tracker.snapshot().getBytesTransferred(),
+                  false);
           tracker.markChunkCompleted(chunkLength);
           return uploadResponse;
         }
@@ -746,12 +904,7 @@ public final class TransferClient {
         byte[] chunk = readChunk(uploadStream, chunkLength);
         StorageUploadResponse uploadResponse =
             uploadBufferedChunkWithRetry(
-                specification,
-                chunk,
-                chunkIndex,
-                offset,
-                tracker,
-                cancelled);
+                specification, chunk, chunkIndex, offset, tracker, cancelled);
         if (uploadResponse.result() != null) {
           chunkUploadResult = uploadResponse.result();
         }
@@ -773,7 +926,10 @@ public final class TransferClient {
 
     UploadResult finishResult =
         finishUpload(
-            specification.getFinishUri(), fileName, fileSize, tracker.snapshot().getBytesTransferred());
+            specification.getFinishUri(),
+            fileName,
+            fileSize,
+            tracker.snapshot().getBytesTransferred());
     return finishResult.getItemId() == null && chunkUploadResult != null
         ? chunkUploadResult
         : finishResult;
@@ -867,11 +1023,15 @@ public final class TransferClient {
       throws IOException {
     int status = response.statusCode();
     byte[] responseBody = response.bodyBytes(10 * 1024 * 1024);
-      String preview = bodyPreview(responseBody);
+    String preview = bodyPreview(responseBody);
 
     if (status >= 400) {
       throwStorageUploadException(
-          phase, "failed with HTTP %d: %s".formatted(status, preview), null, finalization, bytesTransferred);
+          phase,
+          "failed with HTTP %d: %s".formatted(status, preview),
+          null,
+          finalization,
+          bytesTransferred);
     }
     if (responseBody.length == 0
         || "OK".equalsIgnoreCase(preview)
@@ -930,11 +1090,7 @@ public final class TransferClient {
   }
 
   private void throwStorageUploadException(
-      String phase,
-      String message,
-      Throwable cause,
-      boolean finalization,
-      long bytesTransferred) {
+      String phase, String message, Throwable cause, boolean finalization, long bytesTransferred) {
     String fullMessage = "ShareFile " + phase + " " + message;
     if (finalization) {
       throw cause == null
@@ -1030,7 +1186,8 @@ public final class TransferClient {
       int read = stream.read(chunk, offset, chunk.length - offset);
       if (read == -1) {
         throw new IOException(
-          "Upload stream ended before expected chunk length: expected %d bytes, read %d bytes".formatted(chunk.length, offset));
+            "Upload stream ended before expected chunk length: expected %d bytes, read %d bytes"
+                .formatted(chunk.length, offset));
       }
       offset += read;
     }
@@ -1066,9 +1223,10 @@ public final class TransferClient {
     if (body == null || body.length == 0) {
       return "<empty>";
     }
-    String value = new String(body, 0, Math.min(body.length, 256), StandardCharsets.UTF_8)
-        .replaceAll("[\\r\\n\\t]+", " ")
-        .trim();
+    String value =
+        new String(body, 0, Math.min(body.length, 256), StandardCharsets.UTF_8)
+            .replaceAll("[\\r\\n\\t]+", " ")
+            .trim();
     return body.length > 256 ? value + "... (" + body.length + " bytes)" : value;
   }
 
@@ -1282,23 +1440,32 @@ public final class TransferClient {
             new TransferProgress(0L, 0L, Duration.ZERO, TransferState.PENDING, 0, 0));
     private final long totalBytes;
     private final TransferProgressListener listener;
+    private final UploadCallback callback;
     private volatile Instant startedAt = Instant.now();
     private volatile int totalChunks;
     private final AtomicInteger chunksCompleted = new AtomicInteger();
 
     ProgressTracker(long totalBytes, TransferProgressListener listener) {
+      this(totalBytes, listener, null);
+    }
+
+    ProgressTracker(long totalBytes, TransferProgressListener listener, UploadCallback callback) {
       this.totalBytes = Math.max(0L, totalBytes);
       this.listener = listener;
+      this.callback = callback;
       update(0L, TransferState.PENDING);
     }
 
     void start() {
       startedAt = Instant.now();
-      update(bytesTransferred.get(), TransferState.IN_PROGRESS);
+      update(bytesTransferred.get(), TransferState.IN_PROGRESS, false);
+      if (callback != null) {
+        invokeUploadCallback(() -> callback.onStarted(snapshot()), "started");
+      }
     }
 
     void addBytes(long delta) {
-      update(bytesTransferred.addAndGet(delta), TransferState.IN_PROGRESS);
+      update(bytesTransferred.addAndGet(delta), TransferState.IN_PROGRESS, true);
     }
 
     void setTotalChunks(int totalChunks) {
@@ -1308,7 +1475,7 @@ public final class TransferClient {
 
     void markChunkCompleted(long committedBytes) {
       chunksCompleted.incrementAndGet();
-      update(bytesTransferred.addAndGet(committedBytes), progress.get().getState());
+      update(bytesTransferred.addAndGet(committedBytes), progress.get().getState(), true);
     }
 
     void complete() {
@@ -1332,6 +1499,10 @@ public final class TransferClient {
     }
 
     private void update(long bytesTransferred, TransferState state) {
+      update(bytesTransferred, state, false);
+    }
+
+    private void update(long bytesTransferred, TransferState state, boolean emitUploadProgress) {
       TransferProgress snapshot =
           new TransferProgress(
               bytesTransferred,
@@ -1343,6 +1514,9 @@ public final class TransferClient {
       progress.set(snapshot);
       if (listener != null) {
         listener.onProgress(snapshot.getBytesTransferred(), snapshot.getTotalBytes());
+      }
+      if (emitUploadProgress && callback != null) {
+        invokeUploadCallback(() -> callback.onProgress(snapshot), "progress");
       }
     }
   }

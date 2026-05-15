@@ -950,6 +950,48 @@ POST /sf/v3/Items({folderId})/Upload
 
 **Phase 2:** POST the file bytes to the `ChunkUri` returned in the specification.
 
+SDK upload behavior:
+
+- `TransferClient.upload(folderId, Path, options)` is file-backed. When the SDK uses ShareFile's
+  `Threaded` method, chunks can be uploaded in parallel according to `UploadOptions.threadCount`.
+- `TransferClient.upload(folderId, InputStream, fileName, fileSize, options)` is stream-backed.
+  The caller must provide the uploaded file name and exact byte size. The SDK still defaults to
+  ShareFile's `Threaded` method so `FinishUri?fmt=json` can return the uploaded item id, but chunks
+  are sent sequentially because a plain `InputStream` is forward-only.
+- `TransferClient.uploadAsync(...)` returns an `UploadHandle` immediately. For stream-backed async
+  uploads, the background task is non-blocking to the caller but chunk transfer remains sequential.
+- Explicit `STREAMED` uploads require a file-backed source because the documented final streamed
+  request needs the whole-file MD5 hash.
+
+```java
+try (InputStream in = Files.newInputStream(Path.of("/tmp/audio.wav"))) {
+  UploadResult result = client.transfers().upload(
+      "fo-folder",
+      in,
+      "audio.wav",
+      Files.size(Path.of("/tmp/audio.wav")),
+      UploadOptions.builder()
+          .progressListener((sent, total) -> log.info("uploaded {}/{}", sent, total))
+          .build());
+}
+```
+
+```java
+UploadHandle handle = client.transfers().uploadAsync(
+    "fo-folder",
+    inputStream,
+    "audio.wav",
+    sizeInBytes,
+    UploadOptions.builder()
+        .callback(new UploadCallback() {
+          @Override
+          public void onCompleted(UploadResult result) {
+            log.info("uploaded item {}", result.getItemId());
+          }
+        })
+        .build());
+```
+
 ---
 
 ### 3.42 Update Item
