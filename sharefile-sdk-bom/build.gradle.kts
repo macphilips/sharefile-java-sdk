@@ -33,7 +33,7 @@ publishing {
                 developers {
                     developer {
                         id.set("macphilips")
-                        name.set("Titilope Philips")
+                        name.set("Titilope Morolari")
                     }
                 }
                 scm {
