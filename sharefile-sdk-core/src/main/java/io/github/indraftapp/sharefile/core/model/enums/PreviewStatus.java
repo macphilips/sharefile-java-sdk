@@ -11,6 +11,7 @@ public enum PreviewStatus {
   AVAILABLE("Available"),
   UNAVAILABLE("Unavailable"),
   CAN_DOC_THUMB("CanDocThumb"),
+  HAS_PREVIEW("HasPreview"),
   UNKNOWN("Unknown");
 
   private final String value;
