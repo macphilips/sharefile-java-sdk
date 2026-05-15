@@ -2,8 +2,10 @@ package io.github.indraftapp.sharefile.client;
 
 import io.github.indraftapp.sharefile.core.model.enums.UploadMethod;
 import java.time.Instant;
+import lombok.Getter;
 
 /** Upload configuration for the transfer client. */
+@Getter
 public final class UploadOptions {
 
   private final UploadMethod method;
@@ -17,6 +19,7 @@ public final class UploadOptions {
   private final Instant clientModifiedDate;
   private final Integer expirationDays;
   private final TransferProgressListener progressListener;
+  private final UploadCallback callback;
   private final String batchId;
   private final boolean batchLast;
 
@@ -32,6 +35,7 @@ public final class UploadOptions {
     this.clientModifiedDate = builder.clientModifiedDate;
     this.expirationDays = builder.expirationDays;
     this.progressListener = builder.progressListener;
+    this.callback = builder.callback;
     this.batchId = builder.batchId;
     this.batchLast = builder.batchLast;
   }
@@ -42,58 +46,6 @@ public final class UploadOptions {
 
   public static Builder builder() {
     return new Builder();
-  }
-
-  public UploadMethod getMethod() {
-    return method;
-  }
-
-  public int getThreadCount() {
-    return threadCount;
-  }
-
-  public int getChunkSizeBytes() {
-    return chunkSizeBytes;
-  }
-
-  public boolean isOverwrite() {
-    return overwrite;
-  }
-
-  public boolean isNotifyUsers() {
-    return notifyUsers;
-  }
-
-  public boolean isAutoResume() {
-    return autoResume;
-  }
-
-  public int getMaxResumeAttempts() {
-    return maxResumeAttempts;
-  }
-
-  public Instant getClientCreatedDate() {
-    return clientCreatedDate;
-  }
-
-  public Instant getClientModifiedDate() {
-    return clientModifiedDate;
-  }
-
-  public Integer getExpirationDays() {
-    return expirationDays;
-  }
-
-  public TransferProgressListener getProgressListener() {
-    return progressListener;
-  }
-
-  public String getBatchId() {
-    return batchId;
-  }
-
-  public boolean isBatchLast() {
-    return batchLast;
   }
 
   /** Builder for {@link UploadOptions}. */
@@ -109,6 +61,7 @@ public final class UploadOptions {
     private Instant clientModifiedDate;
     private Integer expirationDays;
     private TransferProgressListener progressListener;
+    private UploadCallback callback;
     private String batchId;
     private boolean batchLast;
 
@@ -166,6 +119,11 @@ public final class UploadOptions {
 
     public Builder progressListener(TransferProgressListener progressListener) {
       this.progressListener = progressListener;
+      return this;
+    }
+
+    public Builder callback(UploadCallback callback) {
+      this.callback = callback;
       return this;
     }
 

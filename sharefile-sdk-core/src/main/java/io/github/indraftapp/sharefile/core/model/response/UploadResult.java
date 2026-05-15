@@ -4,11 +4,13 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 /** Response payload describing the final result of a ShareFile upload. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
+@ToString
 public class UploadResult {
 
   @JsonProperty("ItemId")

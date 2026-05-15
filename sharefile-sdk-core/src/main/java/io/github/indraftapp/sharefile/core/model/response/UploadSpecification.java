@@ -5,11 +5,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.indraftapp.sharefile.core.model.enums.UploadMethod;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 /** Response payload containing ShareFile upload endpoints and resume metadata. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
+@ToString
 public class UploadSpecification {
 
   @JsonProperty("Method")
