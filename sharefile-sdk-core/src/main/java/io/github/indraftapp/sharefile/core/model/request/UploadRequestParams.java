@@ -43,14 +43,17 @@ public class UploadRequestParams {
   @JsonProperty("Raw")
   private Boolean raw;
 
+  @JsonProperty("CanResume")
+  private Boolean canResume;
+
   @JsonProperty("BatchId")
   private String batchId;
 
   @JsonProperty("BatchLast")
   private Boolean batchLast;
 
-  @JsonProperty("NotifyUsers")
-  private Boolean notifyUsers;
+  @JsonProperty("Notify")
+  private Boolean notify;
 
   @JsonProperty("ClientCreatedDate")
   private Instant clientCreatedDate;

@@ -1,6 +1,7 @@
 package io.github.indraftapp.sharefile.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.github.indraftapp.sharefile.client.config.ShareFileConfig;
 import io.github.indraftapp.sharefile.client.http.HttpTransport;
 import io.github.indraftapp.sharefile.client.internal.ShareFileHttpClient;
@@ -16,20 +17,25 @@ import io.github.indraftapp.sharefile.core.exception.ShareFileUploadFinalization
 import io.github.indraftapp.sharefile.core.exception.ShareFileUploadNegotiationException;
 import io.github.indraftapp.sharefile.core.model.enums.UploadMethod;
 import io.github.indraftapp.sharefile.core.model.request.UploadRequestParams;
-import io.github.indraftapp.sharefile.core.model.response.ChunkResult;
 import io.github.indraftapp.sharefile.core.model.response.DownloadSpecification;
 import io.github.indraftapp.sharefile.core.model.response.UploadResult;
 import io.github.indraftapp.sharefile.core.model.response.UploadSpecification;
+import java.io.ByteArrayInputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +53,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
+
+import static java.lang.Boolean.TRUE;
 
 /** Explicit ShareFile transfer client for upload and download workflows. */
 @Slf4j
@@ -355,27 +363,44 @@ public final class TransferClient {
     metrics.incrementCounter(MetricNames.TRANSFER_ACTIVE, "type", "upload", "event", "start");
     log.info("Starting upload for {}", fileName);
     try {
-      UploadMethod method = resolveUploadMethod(options.getMethod(), fileSize, file != null);
+      UploadMethod method = resolveUploadMethod(options.getMethod());
+      if (method == UploadMethod.STREAMED && file == null) {
+        throw new IllegalArgumentException("Streamed upload requires a file-backed source");
+      }
       UploadSpecification specification =
           negotiateUpload(negotiateUri, fileName, fileSize, options, method);
       UploadMethod negotiatedMethod =
           specification.getMethod() != null ? specification.getMethod() : method;
       UploadResult result =
           switch (negotiatedMethod) {
-            case STANDARD, STREAMED ->
-                uploadSingleRequest(
+            case STANDARD ->
+                uploadStandard(
                     specification,
                     file,
                     stream,
                     fileName,
                     fileSize,
-                    negotiatedMethod,
+                    tracker,
+                    cancelled);
+            case STREAMED ->
+                uploadStreamed(
+                    specification,
+                    requireFile(file, "Streamed upload requires a file-backed source"),
+                    fileName,
+                    fileSize,
                     options,
                     tracker,
                     cancelled);
             case THREADED ->
                 uploadThreaded(
-                    specification, requireFile(file), fileSize, options, tracker, cancelled);
+                    specification,
+                    file,
+                    stream,
+                    fileName,
+                    fileSize,
+                    options,
+                    tracker,
+                    cancelled);
           };
       tracker.complete();
       metrics.recordValue(
@@ -415,11 +440,13 @@ public final class TransferClient {
       String fileName, long fileSize, UploadOptions options, UploadMethod method) {
     UploadRequestParams params = new UploadRequestParams();
     params.setMethod(method);
+    params.setRaw(true);
     params.setFileName(fileName);
     params.setFileSize(fileSize);
     params.setOverwrite(options.isOverwrite());
-    params.setNotifyUsers(options.isNotifyUsers());
+    params.setNotify(options.isNotifyUsers());
     params.setThreadCount(options.getThreadCount());
+    params.setCanResume(options.isAutoResume() && method != UploadMethod.STANDARD);
     params.setBatchId(options.getBatchId());
     params.setBatchLast(options.isBatchLast());
     params.setClientCreatedDate(options.getClientCreatedDate());
@@ -428,54 +455,42 @@ public final class TransferClient {
     return params;
   }
 
-  private UploadResult uploadSingleRequest(
+  private UploadResult uploadStandard(
       UploadSpecification specification,
       Path file,
       InputStream providedStream,
       String fileName,
       long fileSize,
-      UploadMethod method,
-      UploadOptions options,
       ProgressTracker tracker,
       AtomicBoolean cancelled) {
-    long resumeOffset =
-        options.isAutoResume()
-                && Boolean.TRUE.equals(specification.getIsResume())
-                && specification.getResumeOffset() != null
-            ? specification.getResumeOffset()
-            : 0L;
     URI chunkUri = URI.create(specification.getChunkUri());
-    try (InputStream stream =
-        file != null
-            ? openFileStream(file, resumeOffset)
-            : skipStream(providedStream, resumeOffset)) {
+    try (InputStream stream = file != null ? openFileStream(file, 0L) : providedStream) {
       HttpTransport.HttpRequest request =
           newStorageRequest(
               "POST",
               chunkUri,
               new ProgressInputStream(stream, tracker, cancelled),
-              method == UploadMethod.STANDARD
-                  ? OptionalLong.of(Math.max(0L, fileSize - resumeOffset))
-                  : OptionalLong.empty(),
+              OptionalLong.of(fileSize),
               config.getUploadTimeout());
       try (HttpTransport.HttpResponse response = storageTransport.execute(request)) {
-        int status = response.statusCode();
-        if (status >= 400) {
-          throw new ShareFileUploadException(
-              "Upload transfer failed with HTTP " + status,
-              true,
-              specification.getResumeIndex() == null
-                  ? -1
-                  : specification.getResumeIndex().intValue(),
-              tracker.snapshot().getBytesTransferred());
+        StorageUploadResponse uploadResponse =
+            parseStorageUploadResponse(
+                response,
+                "upload transfer",
+                chunkUri,
+                tracker.snapshot().getBytesTransferred(),
+                false);
+        if (uploadResponse.result() != null) {
+          return uploadResponse.result();
         }
         if (specification.getFinishUri() != null) {
-          response.bodyBytes(10 * 1024 * 1024);
           return finishUpload(
-              specification.getFinishUri(), tracker.snapshot().getBytesTransferred());
+              specification.getFinishUri(),
+              fileName,
+              fileSize,
+              tracker.snapshot().getBytesTransferred());
         }
-        byte[] responseBody = response.bodyBytes(10 * 1024 * 1024);
-        return objectMapper.readValue(responseBody, UploadResult.class);
+        return fallbackUploadResult(fileName, fileSize);
       }
     } catch (IOException e) {
       throw new ShareFileUploadException(
@@ -487,9 +502,81 @@ public final class TransferClient {
     }
   }
 
+  private UploadResult uploadStreamed(
+      UploadSpecification specification,
+      Path file,
+      String fileName,
+      long fileSize,
+      UploadOptions options,
+      ProgressTracker tracker,
+      AtomicBoolean cancelled) {
+    int chunkSize = Math.max(1, options.getChunkSizeBytes());
+    int totalChunks = Math.max(1, (int) ((fileSize + chunkSize - 1) / chunkSize));
+    tracker.setTotalChunks(totalChunks);
+    String fileHash = md5Hex(file);
+    UploadResult jsonResult = null;
+    for (int chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      ensureNotCancelled(cancelled, tracker);
+      long offset = (long) chunkIndex * chunkSize;
+      long chunkLength = chunkLength(chunkSize, fileSize, chunkIndex);
+      Map<String, String> params = uploadChunkParams(file, chunkIndex, offset, chunkLength);
+      if (chunkIndex == totalChunks - 1) {
+        params.put("finish", "true");
+        params.put("filehash", fileHash);
+      }
+      URI chunkUri = uriWithParams(URI.create(specification.getChunkUri()), params);
+      try (InputStream stream = openChunkStream(file, offset, chunkLength);
+          HttpTransport.HttpResponse response =
+              storageTransport.execute(
+                  newStorageRequest(
+                      "POST",
+                      chunkUri,
+                      new ProgressInputStream(stream, tracker, cancelled),
+                      OptionalLong.of(chunkLength),
+                      config.getUploadTimeout()))) {
+        StorageUploadResponse uploadResponse =
+            parseStorageUploadResponse(
+                response,
+                "streamed upload chunk",
+                chunkUri,
+                tracker.snapshot().getBytesTransferred(),
+                false);
+        if (uploadResponse.result() != null) {
+          jsonResult = uploadResponse.result();
+        }
+        tracker.markChunkCompleted(chunkLength);
+      } catch (IOException e) {
+        throw new ShareFileUploadException(
+            "Streamed upload failed for " + fileName,
+            e,
+            true,
+            Math.max(-1, chunkIndex - 1),
+            tracker.snapshot().getBytesTransferred());
+      }
+    }
+    return jsonResult == null ? fallbackUploadResult(fileName, fileSize) : jsonResult;
+  }
+
   private UploadResult uploadThreaded(
       UploadSpecification specification,
       Path file,
+      InputStream stream,
+      String fileName,
+      long fileSize,
+      UploadOptions options,
+      ProgressTracker tracker,
+      AtomicBoolean cancelled) {
+    if (file == null) {
+      return uploadThreadedStream(
+          specification, stream, fileName, fileSize, options, tracker, cancelled);
+    }
+    return uploadThreadedFile(specification, file, fileName, fileSize, options, tracker, cancelled);
+  }
+
+  private UploadResult uploadThreadedFile(
+      UploadSpecification specification,
+      Path file,
+      String fileName,
       long fileSize,
       UploadOptions options,
       ProgressTracker tracker,
@@ -498,7 +585,7 @@ public final class TransferClient {
     int totalChunks = Math.max(1, (int) ((fileSize + chunkSize - 1) / chunkSize));
     int startChunk =
         options.isAutoResume()
-                && Boolean.TRUE.equals(specification.getIsResume())
+                && TRUE.equals(specification.getIsResume())
                 && specification.getResumeIndex() != null
             ? specification.getResumeIndex().intValue()
             : 0;
@@ -516,7 +603,7 @@ public final class TransferClient {
               return thread;
             });
     try {
-      List<Future<ChunkResult>> futures =
+      List<Future<StorageUploadResponse>> futures =
           java.util.stream.IntStream.range(startChunk, totalChunks)
               .mapToObj(
                   chunkIndex ->
@@ -531,9 +618,13 @@ public final class TransferClient {
                                   tracker,
                                   cancelled)))
               .toList();
-      for (Future<ChunkResult> future : futures) {
+      UploadResult chunkUploadResult = null;
+      for (Future<StorageUploadResponse> future : futures) {
         try {
-          future.get();
+          StorageUploadResponse uploadResponse = future.get();
+          if (uploadResponse.result() != null) {
+            chunkUploadResult = uploadResponse.result();
+          }
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new ShareFileTransferCancelledException("Threaded upload interrupted");
@@ -545,13 +636,21 @@ public final class TransferClient {
           throw new CompletionException(cause);
         }
       }
-      return finishUpload(specification.getFinishUri(), tracker.snapshot().getBytesTransferred());
+      UploadResult finishResult =
+          finishUpload(
+              specification.getFinishUri(),
+              fileName,
+              fileSize,
+              tracker.snapshot().getBytesTransferred());
+      return finishResult.getItemId() == null && chunkUploadResult != null
+          ? chunkUploadResult
+          : finishResult;
     } finally {
       executor.shutdownNow();
     }
   }
 
-  private ChunkResult uploadChunkWithRetry(
+  private StorageUploadResponse uploadChunkWithRetry(
       UploadSpecification specification,
       Path file,
       int chunkIndex,
@@ -560,29 +659,30 @@ public final class TransferClient {
       ProgressTracker tracker,
       AtomicBoolean cancelled) {
     long offset = (long) chunkIndex * chunkSize;
-    long chunkLength = chunkLength(chunkSize, fileSize, chunkIndex);
+      long chunkLength = chunkLength(chunkSize, fileSize, chunkIndex);
     for (int attempt = 0; attempt <= retryConfig.getMaxRetries(); attempt++) {
       ensureNotCancelled(cancelled, tracker);
       try (InputStream stream = openChunkStream(file, offset, chunkLength)) {
+        Map<String, String> params = uploadChunkParams(file, chunkIndex, offset, chunkLength);
+        params.put("fmt", "json");
+        URI chunkUri = uriWithParams(URI.create(specification.getChunkUri()), params);
         HttpTransport.HttpRequest request =
             newStorageRequest(
                 "POST",
-                URI.create(specification.getChunkUri()),
+                chunkUri,
                 stream,
                 OptionalLong.of(chunkLength),
                 config.getUploadTimeout());
         try (HttpTransport.HttpResponse response = storageTransport.execute(request)) {
-          int status = response.statusCode();
-          if (status >= 400) {
-            throw new IOException("Chunk upload failed with HTTP " + status);
-          }
-          byte[] responseBody = response.bodyBytes(1024 * 1024);
-          ChunkResult result =
-              responseBody.length == 0
-                  ? new ChunkResult()
-                  : objectMapper.readValue(responseBody, ChunkResult.class);
+          StorageUploadResponse uploadResponse =
+              parseStorageUploadResponse(
+              response,
+              "threaded upload chunk",
+              chunkUri,
+              tracker.snapshot().getBytesTransferred(),
+              false);
           tracker.markChunkCompleted(chunkLength);
-          return result;
+          return uploadResponse;
         }
       } catch (ShareFileTransferCancelledException e) {
         throw e;
@@ -609,23 +709,384 @@ public final class TransferClient {
         tracker.snapshot().getBytesTransferred());
   }
 
-  private UploadResult finishUpload(String finishUri, long bytesTransferred) {
+  private UploadResult uploadThreadedStream(
+      UploadSpecification specification,
+      InputStream stream,
+      String fileName,
+      long fileSize,
+      UploadOptions options,
+      ProgressTracker tracker,
+      AtomicBoolean cancelled) {
+    int chunkSize = Math.max(1, options.getChunkSizeBytes());
+    int totalChunks = Math.max(1, (int) ((fileSize + chunkSize - 1) / chunkSize));
+    long resumeOffset =
+        options.isAutoResume()
+                && TRUE.equals(specification.getIsResume())
+                && specification.getResumeOffset() != null
+            ? specification.getResumeOffset()
+            : 0L;
+    int startChunk =
+        options.isAutoResume()
+                && TRUE.equals(specification.getIsResume())
+                && specification.getResumeIndex() != null
+            ? specification.getResumeIndex().intValue()
+            : (int) (resumeOffset / chunkSize);
+    tracker.setTotalChunks(totalChunks);
+    for (int i = 0; i < startChunk; i++) {
+      tracker.markChunkCompleted(chunkLength(chunkSize, fileSize, i));
+    }
+
+    UploadResult chunkUploadResult = null;
+    try (InputStream uploadStream = skipStream(stream, resumeOffset)) {
+      long offset = resumeOffset;
+      int chunkIndex = startChunk;
+      while (offset < fileSize || (fileSize == 0L && chunkIndex == 0)) {
+        ensureNotCancelled(cancelled, tracker);
+        long chunkLength = Math.min(chunkSize, Math.max(0L, fileSize - offset));
+        byte[] chunk = readChunk(uploadStream, chunkLength);
+        StorageUploadResponse uploadResponse =
+            uploadBufferedChunkWithRetry(
+                specification,
+                chunk,
+                chunkIndex,
+                offset,
+                tracker,
+                cancelled);
+        if (uploadResponse.result() != null) {
+          chunkUploadResult = uploadResponse.result();
+        }
+        tracker.markChunkCompleted(chunk.length);
+        offset += chunk.length;
+        chunkIndex++;
+        if (fileSize == 0L) {
+          break;
+        }
+      }
+    } catch (IOException e) {
+      throw new ShareFileUploadException(
+          "Threaded stream upload failed for " + fileName,
+          e,
+          true,
+          Math.max(-1, startChunk - 1),
+          tracker.snapshot().getBytesTransferred());
+    }
+
+    UploadResult finishResult =
+        finishUpload(
+            specification.getFinishUri(), fileName, fileSize, tracker.snapshot().getBytesTransferred());
+    return finishResult.getItemId() == null && chunkUploadResult != null
+        ? chunkUploadResult
+        : finishResult;
+  }
+
+  private StorageUploadResponse uploadBufferedChunkWithRetry(
+      UploadSpecification specification,
+      byte[] chunk,
+      int chunkIndex,
+      long offset,
+      ProgressTracker tracker,
+      AtomicBoolean cancelled) {
+    for (int attempt = 0; attempt <= retryConfig.getMaxRetries(); attempt++) {
+      ensureNotCancelled(cancelled, tracker);
+      Map<String, String> params = new LinkedHashMap<>();
+      params.put("index", Integer.toString(chunkIndex));
+      params.put("byteOffset", Long.toString(offset));
+      params.put("hash", md5Hex(chunk));
+      params.put("fmt", "json");
+      URI chunkUri = uriWithParams(URI.create(specification.getChunkUri()), params);
+      HttpTransport.HttpRequest request =
+          newStorageRequest(
+              "POST",
+              chunkUri,
+              new ByteArrayInputStream(chunk),
+              OptionalLong.of(chunk.length),
+              config.getUploadTimeout());
+      try (HttpTransport.HttpResponse response = storageTransport.execute(request)) {
+        return parseStorageUploadResponse(
+            response,
+            "threaded upload chunk",
+            chunkUri,
+            tracker.snapshot().getBytesTransferred(),
+            false);
+      } catch (ShareFileTransferCancelledException e) {
+        throw e;
+      } catch (Exception e) {
+        if (attempt >= retryConfig.getMaxRetries()) {
+          throw new ShareFileChunkUploadException(
+              "Chunk upload failed after retries",
+              e,
+              chunkIndex,
+              offset,
+              Math.max(-1, chunkIndex - 1),
+              tracker.snapshot().getBytesTransferred());
+        }
+        log.warn("Retrying stream chunk {} after failure", chunkIndex, e);
+        sleepBackoff(attempt);
+      }
+    }
+    throw new ShareFileChunkUploadException(
+        "Chunk upload failed after retries",
+        null,
+        chunkIndex,
+        offset,
+        Math.max(-1, chunkIndex - 1),
+        tracker.snapshot().getBytesTransferred());
+  }
+
+  private UploadResult finishUpload(
+      String finishUri, String fileName, long fileSize, long bytesTransferred) {
     if (finishUri == null || finishUri.isBlank()) {
       throw new ShareFileUploadFinalizationException("Missing upload finish URI", bytesTransferred);
     }
     try (HttpTransport.HttpResponse response =
         storageTransport.execute(
-            newStorageRequest("POST", URI.create(finishUri), null, config.getUploadTimeout()))) {
-      int status = response.statusCode();
-      if (status >= 400) {
-        throw new ShareFileUploadFinalizationException(
-            "Upload finalization failed with HTTP " + status, bytesTransferred);
-      }
-      return objectMapper.readValue(response.bodyBytes(10 * 1024 * 1024), UploadResult.class);
+            newStorageRequest(
+                "POST",
+                uriWithParams(URI.create(finishUri), Map.of("fmt", "json")),
+                null,
+                config.getUploadTimeout()))) {
+
+      StorageUploadResponse uploadResponse =
+          parseStorageUploadResponse(
+              response, "upload finalization", URI.create(finishUri), bytesTransferred, true);
+      return uploadResponse.result() == null
+          ? fallbackUploadResult(fileName, fileSize)
+          : uploadResponse.result();
     } catch (IOException e) {
       throw new ShareFileUploadFinalizationException(
           "Failed to parse upload finalization response", e, bytesTransferred);
     }
+  }
+
+  private StorageUploadResponse parseStorageUploadResponse(
+      HttpTransport.HttpResponse response,
+      String phase,
+      URI uri,
+      long bytesTransferred,
+      boolean finalization)
+      throws IOException {
+    int status = response.statusCode();
+    byte[] responseBody = response.bodyBytes(10 * 1024 * 1024);
+      String preview = bodyPreview(responseBody);
+
+    if (status >= 400) {
+      throwStorageUploadException(
+          phase, "failed with HTTP %d: %s".formatted(status, preview), null, finalization, bytesTransferred);
+    }
+    if (responseBody.length == 0
+        || "OK".equalsIgnoreCase(preview)
+        || preview.regionMatches(true, 0, "OK:", 0, "OK:".length())) {
+      return new StorageUploadResponse(null);
+    }
+    if (preview.regionMatches(true, 0, "ERROR:", 0, "ERROR:".length())) {
+      throwStorageUploadException(
+          phase, "returned " + preview, null, finalization, bytesTransferred);
+    }
+    if (preview.startsWith("{")) {
+      try {
+        return new StorageUploadResponse(parseUploadResultJson(responseBody));
+      } catch (IOException e) {
+        throwStorageUploadException(
+            phase, "returned invalid JSON: " + preview, e, finalization, bytesTransferred);
+      }
+    }
+    throwStorageUploadException(
+        phase,
+        "returned unexpected response: status="
+            + status
+            + ", contentType="
+            + firstHeader(response.headers(), "Content-Type")
+            + ", bodyPreview="
+            + preview,
+        null,
+        finalization,
+        bytesTransferred);
+    throw new IllegalStateException("unreachable");
+  }
+
+  private UploadResult parseUploadResultJson(byte[] responseBody) throws IOException {
+    JsonNode node = objectMapper.readTree(responseBody);
+    JsonNode value = node.get("value");
+    if (value != null && value.isArray() && !value.isEmpty()) {
+      return uploadResultFromStorageNode(value.get(0));
+    }
+    return objectMapper.treeToValue(node, UploadResult.class);
+  }
+
+  private UploadResult uploadResultFromStorageNode(JsonNode node) {
+    UploadResult result = new UploadResult();
+    result.setItemId(textValue(node, "id"));
+    result.setFileName(textValue(node, "filename"));
+    JsonNode size = node.get("size");
+    if (size != null && size.canConvertToLong()) {
+      result.setFileSize(size.longValue());
+    }
+    return result;
+  }
+
+  private String textValue(JsonNode node, String fieldName) {
+    JsonNode value = node.get(fieldName);
+    return value == null || value.isNull() ? null : value.asText();
+  }
+
+  private void throwStorageUploadException(
+      String phase,
+      String message,
+      Throwable cause,
+      boolean finalization,
+      long bytesTransferred) {
+    String fullMessage = "ShareFile " + phase + " " + message;
+    if (finalization) {
+      throw cause == null
+          ? new ShareFileUploadFinalizationException(fullMessage, bytesTransferred)
+          : new ShareFileUploadFinalizationException(fullMessage, cause, bytesTransferred);
+    }
+    throw cause == null
+        ? new ShareFileUploadException(fullMessage, true, -1, bytesTransferred)
+        : new ShareFileUploadException(fullMessage, cause, true, -1, bytesTransferred);
+  }
+
+  private UploadResult fallbackUploadResult(String fileName, long fileSize) {
+    UploadResult result = new UploadResult();
+    result.setFileName(fileName);
+    result.setFileSize(fileSize);
+    return result;
+  }
+
+  private Map<String, String> uploadChunkParams(
+      Path file, int chunkIndex, long offset, long chunkLength) {
+    Map<String, String> params = new LinkedHashMap<>();
+    params.put("index", Integer.toString(chunkIndex));
+    params.put("byteOffset", Long.toString(offset));
+    params.put("hash", md5Hex(file, offset, chunkLength));
+    return params;
+  }
+
+  private URI uriWithParams(URI uri, Map<String, String> params) {
+    if (params == null || params.isEmpty()) {
+      return uri;
+    }
+    StringBuilder builder = new StringBuilder(uri.toString());
+    builder.append(uri.getQuery() == null || uri.getQuery().isEmpty() ? '?' : '&');
+    boolean first = true;
+    for (Map.Entry<String, String> entry : params.entrySet()) {
+      if (!first) {
+        builder.append('&');
+      }
+      builder.append(encode(entry.getKey()));
+      builder.append('=');
+      builder.append(encode(entry.getValue()));
+      first = false;
+    }
+    return URI.create(builder.toString());
+  }
+
+  private String md5Hex(Path file) {
+    try (InputStream stream = Files.newInputStream(file)) {
+      MessageDigest digest = newMd5Digest();
+      byte[] buffer = new byte[DOWNLOAD_BUFFER_SIZE];
+      int read;
+      while ((read = stream.read(buffer)) != -1) {
+        digest.update(buffer, 0, read);
+      }
+      return HexFormat.of().formatHex(digest.digest());
+    } catch (IOException e) {
+      throw new ShareFileUploadException("Failed to hash upload source file", e, true, -1, 0);
+    }
+  }
+
+  private String md5Hex(Path file, long offset, long length) {
+    try (InputStream stream = openChunkStream(file, offset, length)) {
+      MessageDigest digest = newMd5Digest();
+      byte[] buffer = new byte[DOWNLOAD_BUFFER_SIZE];
+      long remaining = length;
+      while (remaining > 0) {
+        int read = stream.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+        if (read == -1) {
+          break;
+        }
+        digest.update(buffer, 0, read);
+        remaining -= read;
+      }
+      return HexFormat.of().formatHex(digest.digest());
+    } catch (IOException e) {
+      throw new ShareFileUploadException("Failed to hash upload chunk", e, true, -1, 0);
+    }
+  }
+
+  private String md5Hex(byte[] bytes) {
+    MessageDigest digest = newMd5Digest();
+    digest.update(bytes);
+    return HexFormat.of().formatHex(digest.digest());
+  }
+
+  private byte[] readChunk(InputStream stream, long expectedLength) throws IOException {
+    if (expectedLength == 0L) {
+      return new byte[0];
+    }
+    byte[] chunk = new byte[Math.toIntExact(expectedLength)];
+    int offset = 0;
+    while (offset < chunk.length) {
+      int read = stream.read(chunk, offset, chunk.length - offset);
+      if (read == -1) {
+        throw new IOException(
+          "Upload stream ended before expected chunk length: expected %d bytes, read %d bytes".formatted(chunk.length, offset));
+      }
+      offset += read;
+    }
+    return chunk;
+  }
+
+  private MessageDigest newMd5Digest() {
+    try {
+      return MessageDigest.getInstance("MD5");
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("MD5 digest is not available", e);
+    }
+  }
+
+  private String encode(String value) {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+  }
+
+  private record StorageUploadResponse(UploadResult result) {}
+
+  private String firstHeader(Map<String, List<String>> headers, String name) {
+    if (headers == null || headers.isEmpty()) {
+      return "<missing>";
+    }
+    return headers.entrySet().stream()
+        .filter(entry -> entry.getKey() != null && entry.getKey().equalsIgnoreCase(name))
+        .flatMap(entry -> entry.getValue().stream())
+        .findFirst()
+        .orElse("<missing>");
+  }
+
+  private String bodyPreview(byte[] body) {
+    if (body == null || body.length == 0) {
+      return "<empty>";
+    }
+    String value = new String(body, 0, Math.min(body.length, 256), StandardCharsets.UTF_8)
+        .replaceAll("[\\r\\n\\t]+", " ")
+        .trim();
+    return body.length > 256 ? value + "... (" + body.length + " bytes)" : value;
+  }
+
+  private String safeUri(URI uri) {
+    if (uri == null) {
+      return "<missing>";
+    }
+    StringBuilder builder = new StringBuilder();
+    if (uri.getScheme() != null) {
+      builder.append(uri.getScheme()).append("://");
+    }
+    if (uri.getHost() != null) {
+      builder.append(uri.getHost());
+    }
+    if (uri.getPath() != null) {
+      builder.append(uri.getPath());
+    }
+    return builder.isEmpty() ? uri.toString() : builder.toString();
   }
 
   private HttpTransport.HttpRequest newStorageRequest(
@@ -672,9 +1133,9 @@ public final class TransferClient {
     };
   }
 
-  private static Path requireFile(Path file) {
+  private static Path requireFile(Path file, String message) {
     if (file == null) {
-      throw new IllegalArgumentException("Threaded upload requires a file-backed source");
+      throw new IllegalArgumentException(message);
     }
     return file;
   }
@@ -689,19 +1150,9 @@ public final class TransferClient {
     return URI.create(specification.getDownloadUrl());
   }
 
-  private static UploadMethod resolveUploadMethod(
-      UploadMethod requested, long fileSize, boolean fileBacked) {
+  private static UploadMethod resolveUploadMethod(UploadMethod requested) {
     if (requested != null) {
       return requested;
-    }
-    if (!fileBacked && fileSize > THREADED_UPLOAD_THRESHOLD_BYTES) {
-      return UploadMethod.STREAMED;
-    }
-    if (fileSize < STANDARD_UPLOAD_THRESHOLD_BYTES) {
-      return UploadMethod.STANDARD;
-    }
-    if (fileSize <= THREADED_UPLOAD_THRESHOLD_BYTES) {
-      return UploadMethod.STREAMED;
     }
     return UploadMethod.THREADED;
   }

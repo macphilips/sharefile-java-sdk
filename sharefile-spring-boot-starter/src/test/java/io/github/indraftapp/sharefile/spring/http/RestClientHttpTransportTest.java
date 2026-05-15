@@ -109,6 +109,30 @@ class RestClientHttpTransportTest {
   }
 
   @Test
+  void patchBodyIsForwarded() {
+    RestClient.Builder builder = RestClient.builder();
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).bufferContent().build();
+    server.expect(once(), requestTo("https://example.test/items(fi1)"))
+        .andExpect(method(HttpMethod.PATCH))
+        .andExpect(content().json("{\"Name\":\"updated\"}"))
+        .andRespond(withSuccess("{\"ok\":true}", MediaType.APPLICATION_JSON));
+
+    RestClientHttpTransport transport = new RestClientHttpTransport(builder.build());
+    try (HttpTransport.HttpResponse response =
+        transport.execute(
+            request(
+                "PATCH",
+                URI.create("https://example.test/items(fi1)"),
+                Map.of("Content-Type", "application/json"),
+                "{\"Name\":\"updated\"}",
+                OptionalLong.of("{\"Name\":\"updated\"}".getBytes(StandardCharsets.UTF_8).length)))) {
+      assertThat(response.statusCode()).isEqualTo(200);
+    }
+
+    server.verify();
+  }
+
+  @Test
   void transportExceptionsAreWrapped() {
     RestClient restClient =
         RestClient.builder()

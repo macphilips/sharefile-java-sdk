@@ -22,6 +22,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 /** Auto-configuration for ShareFile SDK Spring Boot integration. */
@@ -88,7 +89,10 @@ public class ShareFileAutoConfiguration {
         registry -> builder.metricsProvider(new MicrometerMetricsProvider(registry)));
 
     restClientBuilder.ifPresent(
-        builderBean -> builder.httpTransport(new RestClientHttpTransport(builderBean.build())));
+        builderBean ->
+            builder.httpTransport(
+                new RestClientHttpTransport(
+                    builderBean.requestFactory(new JdkClientHttpRequestFactory()).build())));
 
     return builder.build();
   }

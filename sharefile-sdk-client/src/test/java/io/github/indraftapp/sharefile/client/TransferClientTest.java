@@ -3,6 +3,7 @@ package io.github.indraftapp.sharefile.client;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,8 +12,10 @@ import io.github.indraftapp.sharefile.client.internal.ShareFileHttpClient;
 import io.github.indraftapp.sharefile.client.retry.RetryConfig;
 import io.github.indraftapp.sharefile.client.spi.MetricsProvider;
 import io.github.indraftapp.sharefile.core.exception.ShareFileDownloadUrlExpiredException;
+import io.github.indraftapp.sharefile.core.exception.ShareFileUploadFinalizationException;
 import io.github.indraftapp.sharefile.core.model.enums.UploadMethod;
 import io.github.indraftapp.sharefile.core.model.response.UploadResult;
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,15 +43,7 @@ class TransferClientTest {
           "ChunkUri": "https://storage.example.com/upload"
         }
         """);
-    transport.enqueueJsonResponse(
-        200,
-        """
-        {
-          "ItemId": "item-1",
-          "FileName": "hello.txt",
-          "FileSize": 5
-        }
-        """);
+    transport.enqueueResponse(200, new byte[0]);
 
     Path file = Files.writeString(tempDir.resolve("hello.txt"), "hello", StandardCharsets.UTF_8);
     RecordingMetricsProvider metrics = new RecordingMetricsProvider();
@@ -59,13 +54,21 @@ class TransferClientTest {
             io.github.indraftapp.sharefile.client.retry.RetryConfig.builder().maxRetries(0).build(),
             metrics)) {
       UploadResult result =
-          context.transferClient().upload("folder-1", file, UploadOptions.defaults());
+          context
+              .transferClient()
+              .upload(
+                  "folder-1",
+                  file,
+                  UploadOptions.builder().method(UploadMethod.STANDARD).build());
 
-      assertEquals("item-1", result.getItemId());
+      assertNull(result.getItemId());
+      assertEquals("hello.txt", result.getFileName());
+      assertEquals(5L, result.getFileSize());
       assertEquals(
           ClientTestSupport.BASE_URL + "/Items(folder-1)/Upload2",
           transport.requests.get(0).uri().toString());
       assertTrue(transport.requests.get(0).body().contains("\"Method\":\"Standard\""));
+      assertTrue(transport.requests.get(0).body().contains("\"Raw\":true"));
       assertEquals(
           "https://storage.example.com/upload", transport.requests.get(1).uri().toString());
       assertEquals("POST", transport.requests.get(1).method());
@@ -77,25 +80,124 @@ class TransferClientTest {
   }
 
   @Test
-  void standardUploadWithFinishUriFinalizesAfterPlainTextStorageResponse() throws Exception {
+  void standardUploadSucceedsWithOkStorageResponse() throws Exception {
     ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
     transport.enqueueJsonResponse(
         200,
         """
         {
           "Method": "Standard",
-          "ChunkUri": "https://storage.example.com/upload",
-          "FinishUri": "https://storage.example.com/finish"
+          "ChunkUri": "https://storage.example.com/upload"
         }
         """);
-    transport.enqueueResponse(200, "ERROR ".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
+
+    Path file = Files.writeString(tempDir.resolve("hello.txt"), "hello", StandardCharsets.UTF_8);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      UploadResult result =
+          context
+              .transferClient()
+              .upload(
+                  "folder-1",
+                  file,
+                  UploadOptions.builder().method(UploadMethod.STANDARD).build());
+
+      assertNull(result.getItemId());
+      assertEquals("hello.txt", result.getFileName());
+      assertEquals(5L, result.getFileSize());
+      assertEquals(2, transport.requests.size());
+      assertEquals(
+          "https://storage.example.com/upload", transport.requests.get(1).uri().toString());
+    }
+  }
+
+  @Test
+  void standardUploadSucceedsWithOkFilenameStorageResponse() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
     transport.enqueueJsonResponse(
         200,
         """
         {
-          "ItemId": "item-1",
-          "FileName": "hello.txt",
-          "FileSize": 5
+          "Method": "Standard",
+          "ChunkUri": "https://storage.example.com/upload"
+        }
+        """);
+    transport.enqueueResponse(200, "OK:hello.txt".getBytes(StandardCharsets.UTF_8));
+
+    Path file = Files.writeString(tempDir.resolve("hello.txt"), "hello", StandardCharsets.UTF_8);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      UploadResult result =
+          context
+              .transferClient()
+              .upload(
+                  "folder-1",
+                  file,
+                  UploadOptions.builder().method(UploadMethod.STANDARD).build());
+
+      assertNull(result.getItemId());
+      assertEquals("hello.txt", result.getFileName());
+      assertEquals(5L, result.getFileSize());
+    }
+  }
+
+  @Test
+  void standardUploadFailsCleanlyWithErrorStorageResponse() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Standard",
+          "ChunkUri": "https://storage.example.com/upload"
+        }
+        """);
+    transport.enqueueResponse(200, "ERROR:System error occurred".getBytes(StandardCharsets.UTF_8));
+
+    Path file = Files.writeString(tempDir.resolve("hello.txt"), "hello", StandardCharsets.UTF_8);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      io.github.indraftapp.sharefile.core.exception.ShareFileUploadException exception =
+          assertThrows(
+              io.github.indraftapp.sharefile.core.exception.ShareFileUploadException.class,
+              () ->
+                  context
+                      .transferClient()
+                      .upload(
+                          "folder-1",
+                          file,
+                          UploadOptions.builder().method(UploadMethod.STANDARD).build()));
+
+      assertTrue(exception.getMessage().contains("ERROR:System error occurred"));
+    }
+  }
+
+  @Test
+  void defaultFileBackedUploadUsesThreadedUploaderForItemId() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Threaded",
+          "ChunkUri": "https://storage.example.com/chunk",
+          "FinishUri": "https://storage.example.com/finish"
+        }
+        """);
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "value": [
+            {
+              "id": "item-1",
+              "filename": "hello.txt",
+              "size": 5
+            }
+          ],
+          "error": false
         }
         """);
 
@@ -106,11 +208,183 @@ class TransferClientTest {
           context.transferClient().upload("folder-1", file, UploadOptions.defaults());
 
       assertEquals("item-1", result.getItemId());
-      assertEquals(3, transport.requests.size());
+      assertEquals("hello.txt", result.getFileName());
+      assertEquals(5L, result.getFileSize());
+      assertTrue(transport.requests.get(0).body().contains("\"Method\":\"Threaded\""));
       assertEquals(
-          "https://storage.example.com/upload", transport.requests.get(1).uri().toString());
+          "https://storage.example.com/chunk?index=0&byteOffset=0&hash=5d41402abc4b2a76b9719d911017c592&fmt=json",
+          transport.requests.get(1).uri().toString());
       assertEquals(
-          "https://storage.example.com/finish", transport.requests.get(2).uri().toString());
+          "https://storage.example.com/finish?fmt=json", transport.requests.get(2).uri().toString());
+    }
+  }
+
+  @Test
+  void threadedFinalizationFailsCleanlyWithErrorStorageResponse() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Threaded",
+          "ChunkUri": "https://storage.example.com/chunk",
+          "FinishUri": "https://storage.example.com/finish"
+        }
+        """);
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueResponse(200, "ERROR:finalization failed".getBytes(StandardCharsets.UTF_8));
+
+    Path file = Files.write(tempDir.resolve("threaded.bin"), "abcde".getBytes(StandardCharsets.UTF_8));
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      ShareFileUploadFinalizationException exception =
+          assertThrows(
+              ShareFileUploadFinalizationException.class,
+              () ->
+                  context
+                      .transferClient()
+                      .upload(
+                          "folder-1",
+                          file,
+                          UploadOptions.builder()
+                              .method(UploadMethod.THREADED)
+                              .chunkSizeBytes(5)
+                              .threadCount(1)
+                              .build()));
+
+      assertTrue(exception.getMessage().contains("ERROR:finalization failed"));
+    }
+  }
+
+  @Test
+  void streamedUploadAppendsFinishAndFileHashToFinalChunk() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Streamed",
+          "ChunkUri": "https://storage.example.com/stream"
+        }
+        """);
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
+
+    Path file =
+        Files.writeString(tempDir.resolve("streamed.txt"), "hello world", StandardCharsets.UTF_8);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      UploadResult result =
+          context
+              .transferClient()
+              .upload(
+                  "folder-1",
+                  file,
+                  UploadOptions.builder().method(UploadMethod.STREAMED).chunkSizeBytes(16).build());
+
+      assertNull(result.getItemId());
+      assertEquals(
+          "https://storage.example.com/stream?index=0&byteOffset=0&hash=5eb63bbbe01eeed093cb22bb8f5acdc3&finish=true&filehash=5eb63bbbe01eeed093cb22bb8f5acdc3",
+          transport.requests.get(1).uri().toString());
+    }
+  }
+
+  @Test
+  void defaultInputStreamUploadUsesThreadedUploaderForItemId() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Threaded",
+          "ChunkUri": "https://storage.example.com/chunk",
+          "FinishUri": "https://storage.example.com/finish"
+        }
+        """);
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "ItemId": "item-stream",
+          "FileName": "stream.bin",
+          "FileSize": 5
+        }
+        """);
+
+    try (ClientTestSupport.TestContext context = ClientTestSupport.createContext(transport)) {
+      UploadResult result =
+          context
+              .transferClient()
+              .upload(
+                  "folder-1",
+                  new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)),
+                  "stream.bin",
+                  5L,
+                  UploadOptions.defaults());
+
+      assertEquals("item-stream", result.getItemId());
+      assertTrue(transport.requests.get(0).body().contains("\"Method\":\"Threaded\""));
+      assertTrue(transport.requests.get(0).body().contains("\"Raw\":true"));
+      assertEquals(
+          "https://storage.example.com/chunk?index=0&byteOffset=0&hash=5d41402abc4b2a76b9719d911017c592&fmt=json",
+          transport.requests.get(1).uri().toString());
+      assertEquals("hello", transport.requests.get(1).body());
+      assertEquals(
+          "https://storage.example.com/finish?fmt=json", transport.requests.get(2).uri().toString());
+    }
+  }
+
+  @Test
+  void threadedInputStreamUploadRetriesBufferedChunkWithoutRereadingStream() throws Exception {
+    ClientTestSupport.TestTransport transport = new ClientTestSupport.TestTransport();
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "Method": "Threaded",
+          "ChunkUri": "https://storage.example.com/chunk",
+          "FinishUri": "https://storage.example.com/finish"
+        }
+        """);
+    transport.enqueueResponse(500, "temporary".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueJsonResponse(
+        200,
+        """
+        {
+          "ItemId": "item-stream",
+          "FileName": "stream.bin",
+          "FileSize": 6
+        }
+        """);
+
+    try (ClientTestSupport.TestContext context =
+        ClientTestSupport.createContext(
+            transport, RetryConfig.builder().maxRetries(1).initialBackoff(Duration.ZERO).build())) {
+      UploadResult result =
+          context
+              .transferClient()
+              .upload(
+                  "folder-1",
+                  new ByteArrayInputStream("abcdef".getBytes(StandardCharsets.UTF_8)),
+                  "stream.bin",
+                  6L,
+                  UploadOptions.builder().chunkSizeBytes(3).build());
+
+      assertEquals("item-stream", result.getItemId());
+      assertEquals("abc", transport.requests.get(1).body());
+      assertEquals("abc", transport.requests.get(2).body());
+      assertEquals("def", transport.requests.get(3).body());
+      assertEquals(
+          "https://storage.example.com/chunk?index=0&byteOffset=0&hash=900150983cd24fb0d6963f7d28e17f72&fmt=json",
+          transport.requests.get(1).uri().toString());
+      assertEquals(
+          "https://storage.example.com/chunk?index=0&byteOffset=0&hash=900150983cd24fb0d6963f7d28e17f72&fmt=json",
+          transport.requests.get(2).uri().toString());
+      assertEquals(
+          "https://storage.example.com/chunk?index=1&byteOffset=3&hash=4ed9407630eb1000c0f6b63842defa7d&fmt=json",
+          transport.requests.get(3).uri().toString());
     }
   }
 
@@ -126,8 +400,8 @@ class TransferClientTest {
           "FinishUri": "https://storage.example.com/finish"
         }
         """);
-    transport.enqueueJsonResponse(200, "{\"ChunkNumber\":0,\"IsComplete\":false}");
-    transport.enqueueJsonResponse(200, "{\"ChunkNumber\":1,\"IsComplete\":true}");
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
+    transport.enqueueResponse(200, new byte[0]);
     transport.enqueueJsonResponse(
         200,
         """
@@ -151,15 +425,19 @@ class TransferClientTest {
                   UploadOptions.builder()
                       .method(UploadMethod.THREADED)
                       .chunkSizeBytes(5)
-                      .threadCount(2)
+                      .threadCount(1)
                       .build());
 
       assertEquals("item-2", result.getItemId());
       assertEquals(4, transport.requests.size());
-      assertEquals("https://storage.example.com/chunk", transport.requests.get(1).uri().toString());
-      assertEquals("https://storage.example.com/chunk", transport.requests.get(2).uri().toString());
       assertEquals(
-          "https://storage.example.com/finish", transport.requests.get(3).uri().toString());
+          "https://storage.example.com/chunk?index=0&byteOffset=0&hash=ab56b4d92b40713acc5af89985d4b786&fmt=json",
+          transport.requests.get(1).uri().toString());
+      assertEquals(
+          "https://storage.example.com/chunk?index=1&byteOffset=5&hash=57c48dcd266eadf089325affe125151f&fmt=json",
+          transport.requests.get(2).uri().toString());
+      assertEquals(
+          "https://storage.example.com/finish?fmt=json", transport.requests.get(3).uri().toString());
     }
   }
 
@@ -177,7 +455,7 @@ class TransferClientTest {
           "ResumeIndex": 1
         }
         """);
-    transport.enqueueJsonResponse(200, "{\"ChunkNumber\":1,\"IsComplete\":true}");
+    transport.enqueueResponse(200, "OK".getBytes(StandardCharsets.UTF_8));
     transport.enqueueJsonResponse(
         200,
         """
@@ -201,6 +479,9 @@ class TransferClientTest {
 
       assertEquals(3, transport.requests.size());
       assertEquals("fghij", transport.requests.get(1).body());
+      assertEquals(
+          "https://storage.example.com/chunk?index=1&byteOffset=5&hash=57c48dcd266eadf089325affe125151f&fmt=json",
+          transport.requests.get(1).uri().toString());
     }
   }
 
