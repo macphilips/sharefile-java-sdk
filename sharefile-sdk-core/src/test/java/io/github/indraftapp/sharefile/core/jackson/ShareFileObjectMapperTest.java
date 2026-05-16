@@ -15,7 +15,6 @@ import io.github.indraftapp.sharefile.core.model.ODataEntity;
 import io.github.indraftapp.sharefile.core.model.ODataFeed;
 import io.github.indraftapp.sharefile.core.model.Share;
 import io.github.indraftapp.sharefile.core.model.WebhookSubscription;
-import io.github.indraftapp.sharefile.core.model.enums.PreviewStatus;
 import io.github.indraftapp.sharefile.core.model.request.BulkAccessControlRequest;
 import io.github.indraftapp.sharefile.core.model.request.RequestShareRequest;
 import io.github.indraftapp.sharefile.core.model.request.SendShareRequest;
@@ -207,9 +206,9 @@ class ShareFileObjectMapperTest {
     Item withBlankPreviewStatus = mapper.readValue(blankPreviewStatusJson, Item.class);
     Item withUnknownPreviewStatus = mapper.readValue(unknownPreviewStatusJson, Item.class);
 
-    assertThat(withDocThumbnailPreview.getPreviewStatus()).isEqualTo(PreviewStatus.CAN_DOC_THUMB);
-    assertThat(withBlankPreviewStatus.getPreviewStatus()).isEqualTo(PreviewStatus.NONE);
-    assertThat(withUnknownPreviewStatus.getPreviewStatus()).isEqualTo(PreviewStatus.UNKNOWN);
+    assertThat(withDocThumbnailPreview.getPreviewStatus()).isEqualTo("CanDocThumb");
+    assertThat(withBlankPreviewStatus.getPreviewStatus()).isEqualTo("None");
+    assertThat(withUnknownPreviewStatus.getPreviewStatus()).isEqualTo("Unknown");
   }
 
   @Test

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import io.github.indraftapp.sharefile.core.jackson.ODataTypeResolver;
-import io.github.indraftapp.sharefile.core.model.enums.PreviewStatus;
 import java.time.Instant;
 import java.util.List;
 import lombok.Getter;
@@ -96,7 +95,7 @@ public class Item extends ODataEntity {
   private Integer expirationDays;
 
   @JsonProperty("PreviewStatus")
-  private PreviewStatus previewStatus;
+  private String previewStatus;
 
   @JsonProperty("HasPendingDeletion")
   private Boolean hasPendingDeletion;
