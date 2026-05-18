@@ -29,7 +29,11 @@ class ShareFileHealthIndicatorTest {
 
       assertThat(health.getStatus().getCode()).isEqualTo("UP");
       assertThat(health.getDetails()).containsEntry("subdomain", "healthco");
-      assertThat(health.getDetails()).containsKey("tokenExpiresIn");
+      assertThat(health.getDetails())
+          .containsKey("tokenExpiration")
+          .containsKey("tokenExpiresIn");
+      assertThat((String) health.getDetails().get("tokenExpiresIn"))
+          .matches("\\d+m \\d+s|\\d+h \\d+m \\d+s|\\d+s");
     } finally {
       client.close();
     }
