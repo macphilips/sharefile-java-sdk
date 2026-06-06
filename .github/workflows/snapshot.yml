@@ -35,17 +35,10 @@ jobs:
       - name: Verify build
         run: ./gradlew clean test jacocoTestReport check --no-daemon
 
-      - name: Publish GitHub Packages and stage Central artifacts
+      - name: Publish GitHub Packages and Central snapshots
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository publishAllPublicationsToJReleaserStagingRepository --no-daemon
-
-      - name: Publish Central Portal snapshots with JReleaser
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CENTRAL_PORTAL_USERNAME: ${{ secrets.CENTRAL_PORTAL_USERNAME }}
           CENTRAL_PORTAL_PASSWORD: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
-          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-          GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
-        run: ./gradlew jreleaserDeploy --no-daemon
+        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository publishAllPublicationsToCentralSnapshotsRepository --no-daemon

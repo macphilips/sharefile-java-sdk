@@ -39,11 +39,8 @@ jobs:
       - name: Verify release build
         run: ./gradlew -PreleaseVersion=${{ steps.version.outputs.release }} clean test jacocoTestReport check --no-daemon
 
-      - name: Publish GitHub Packages and stage Central artifacts
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_ACTOR: ${{ github.actor }}
-        run: ./gradlew -PreleaseVersion=${{ steps.version.outputs.release }} publishAllPublicationsToGitHubPackagesRepository publishAllPublicationsToJReleaserStagingRepository --no-daemon
+      - name: Stage Central release artifacts
+        run: ./gradlew -PreleaseVersion=${{ steps.version.outputs.release }} publishAllPublicationsToJReleaserStagingRepository --no-daemon
 
       - name: Publish release to Sonatype Central with JReleaser
         env:

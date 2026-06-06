@@ -219,17 +219,14 @@ Pushes to `main` run the snapshot workflow, which:
 
 - verifies the build and tests
 - publishes to GitHub Packages
-- stages Maven artifacts locally with Gradle
-- publishes snapshots to Sonatype Central with JReleaser using Central's Maven snapshots repository
+- publishes snapshots directly to Sonatype Central's Maven snapshots repository with Gradle `maven-publish`
 
 Required secrets:
 
 - `CENTRAL_PORTAL_USERNAME`
 - `CENTRAL_PORTAL_PASSWORD`
-- `GPG_SIGNING_KEY`
-- `GPG_SIGNING_PASSWORD`
 
-GitHub Packages publishing uses the default GitHub Actions token. JReleaser also requires a non-empty GitHub token even when release creation is skipped, so the workflows pass `GITHUB_TOKEN` into the deploy step.
+GitHub Packages publishing uses the default GitHub Actions token.
 
 ### Release Publishing
 
@@ -237,8 +234,8 @@ Releases are tag-driven. Pushing a tag that matches `v*.*.*` triggers the releas
 
 1. derives the release version from the Git tag by stripping the leading `v`
 2. runs the full build, checks, and aggregate coverage
-3. publishes to GitHub Packages with Gradle using `-PreleaseVersion=<tag-version>`
-4. stages Maven artifacts with Gradle, then signs and publishes the release to Sonatype Central Portal with JReleaser
+3. stages Maven artifacts with Gradle using `-PreleaseVersion=<tag-version>`
+4. signs and publishes the staged release bundle to Sonatype Central Portal with JReleaser
 
 Maintainer flow:
 
