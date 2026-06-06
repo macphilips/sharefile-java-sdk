@@ -252,6 +252,9 @@ Required Central release secrets:
 
 - `CENTRAL_PORTAL_USERNAME`
 - `CENTRAL_PORTAL_PASSWORD`
+
+These must be the Central Publisher Portal user token credentials, not the interactive website login password. The release workflow base64-encodes `username:password` into the Bearer token format required by the Portal Publisher API.
+
 - `GPG_SIGNING_KEY`
 - `GPG_SIGNING_PASSWORD`
 

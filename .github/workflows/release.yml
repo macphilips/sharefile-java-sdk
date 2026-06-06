@@ -52,4 +52,6 @@ jobs:
           CENTRAL_PORTAL_PASSWORD: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
-        run: ./gradlew -PreleaseVersion=${{ steps.version.outputs.release }} jreleaserDeploy --no-daemon
+        run: |
+          export JRELEASER_MAVENCENTRAL_RELEASE_DEPLOY_TOKEN="$(printf '%s:%s' "$CENTRAL_PORTAL_USERNAME" "$CENTRAL_PORTAL_PASSWORD" | base64 | tr -d '\n')"
+          ./gradlew -PreleaseVersion=${{ steps.version.outputs.release }} jreleaserDeploy --no-daemon

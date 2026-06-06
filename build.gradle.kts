@@ -69,8 +69,6 @@ jreleaser {
                     active = org.jreleaser.model.Active.RELEASE
                     url = "https://central.sonatype.com/api/v1/publisher"
                     authorization = org.jreleaser.model.Http.Authorization.BEARER
-                    username = providers.environmentVariable("CENTRAL_PORTAL_USERNAME").orNull
-                    password = providers.environmentVariable("CENTRAL_PORTAL_PASSWORD").orNull
                     stagingRepository(jreleaserStagingRepository.get().asFile.absolutePath)
                 }
             }
