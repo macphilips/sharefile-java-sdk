@@ -1,10 +1,12 @@
 name: Release Publish
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
 
 permissions:
-  contents: write
+  contents: read
   packages: write
 
 jobs:
@@ -24,49 +26,24 @@ jobs:
           java-version: 21
           cache: gradle
 
-      - name: Derive release and next snapshot versions
+      - name: Derive release version from tag
         id: version
         run: |
-          CURRENT_VERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
-          if [[ "$CURRENT_VERSION" != *-SNAPSHOT ]]; then
-            echo "gradle.properties version must end with -SNAPSHOT" >&2
+          TAG_NAME="${GITHUB_REF_NAME}"
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must match v<major>.<minor>.<patch>" >&2
             exit 1
           fi
-          RELEASE_VERSION="${CURRENT_VERSION%-SNAPSHOT}"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$RELEASE_VERSION"
-          NEXT_PATCH=$((PATCH + 1))
-          NEXT_SNAPSHOT="$MAJOR.$MINOR.$NEXT_PATCH-SNAPSHOT"
-          echo "release=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
-          echo "next=$NEXT_SNAPSHOT" >> "$GITHUB_OUTPUT"
-
-      - name: Set release version
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("gradle.properties")
-          current = path.read_text()
-          path.write_text(current.replace(
-              "version=${{ steps.version.outputs.release }}-SNAPSHOT",
-              "version=${{ steps.version.outputs.release }}"
-          ))
-          PY
-
-      - name: Commit release version
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add gradle.properties
-          git commit -m "Release v${{ steps.version.outputs.release }}"
-          git push
+          echo "release=${TAG_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Verify release build
-        run: ./gradlew clean test jacocoTestReport check --no-daemon
+        run: ./gradlew -PreleaseVersion=${{ steps.version.outputs.release }} clean test jacocoTestReport check --no-daemon
 
       - name: Publish GitHub Packages and stage Central artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository publishAllPublicationsToJReleaserStagingRepository --no-daemon
+        run: ./gradlew -PreleaseVersion=${{ steps.version.outputs.release }} publishAllPublicationsToGitHubPackagesRepository publishAllPublicationsToJReleaserStagingRepository --no-daemon
 
       - name: Publish release to Sonatype Central with JReleaser
         env:
@@ -75,29 +52,4 @@ jobs:
           CENTRAL_PORTAL_PASSWORD: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
-        run: ./gradlew jreleaserDeploy --no-daemon
-
-      - name: Tag release
-        run: |
-          git tag "v${{ steps.version.outputs.release }}"
-          git push origin "v${{ steps.version.outputs.release }}"
-
-      - name: Bump to next snapshot
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("gradle.properties")
-          lines = []
-          for line in path.read_text().splitlines():
-              if line.startswith("version="):
-                  lines.append("version=${{ steps.version.outputs.next }}")
-              else:
-                  lines.append(line)
-          path.write_text("\n".join(lines) + "\n")
-          PY
-
-      - name: Commit next snapshot version
-        run: |
-          git add gradle.properties
-          git commit -m "Prepare next development iteration"
-          git push
+        run: ./gradlew -PreleaseVersion=${{ steps.version.outputs.release }} jreleaserDeploy --no-daemon

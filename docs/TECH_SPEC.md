@@ -2440,7 +2440,7 @@ Three workflows:
 
 1. **CI** (every push/PR) — build + test
 2. **Snapshot** (every merge to `main`) — publish to GitHub Packages + Sonatype Snapshots
-3. **Release** (manual trigger) — strip `-SNAPSHOT`, sign, publish to Maven Central, tag, bump to next snapshot
+3. **Release** (tag push `v*.*.*`) — derive version from the tag, sign, and publish to Maven Central without mutating the protected branch
 
 ### 18.6 BOM
 

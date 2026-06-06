@@ -72,6 +72,14 @@ CI-equivalent commands from the repository root:
 ./gradlew clean check
 ```
 
+Release-version override checks:
+
+```bash
+./gradlew properties
+./gradlew -PreleaseVersion=1.0.0 properties
+./gradlew -PreleaseVersion=1.0.0 clean test jacocoTestReport check
+```
+
 Useful targeted commands:
 
 ```bash
@@ -225,14 +233,20 @@ GitHub Packages publishing uses the default GitHub Actions token. JReleaser also
 
 ### Release Publishing
 
-The release workflow is `workflow_dispatch` only. It:
+Releases are tag-driven. Pushing a tag that matches `v*.*.*` triggers the release workflow. It:
 
-1. derives the release version from `gradle.properties`
+1. derives the release version from the Git tag by stripping the leading `v`
 2. runs the full build, checks, and aggregate coverage
-3. publishes to GitHub Packages with Gradle
+3. publishes to GitHub Packages with Gradle using `-PreleaseVersion=<tag-version>`
 4. stages Maven artifacts with Gradle, then signs and publishes the release to Sonatype Central Portal with JReleaser
-5. creates and pushes a Git tag
-6. bumps `gradle.properties` to the next `-SNAPSHOT`
+
+Maintainer flow:
+
+1. merge release-ready changes to `main` through a pull request
+2. confirm `gradle.properties` still contains the development snapshot version
+3. create and push the release tag from the exact commit to publish, for example `v1.0.0`
+
+The release workflow does not commit, push, retag, or edit `gradle.properties`, so it remains compatible with protected branches that require pull requests.
 
 Required Central release secrets:
 

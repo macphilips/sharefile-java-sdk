@@ -22,6 +22,9 @@ plugins {
     id("org.jreleaser") version "1.24.0"
 }
 
+val effectiveVersion = providers.gradleProperty("releaseVersion").orElse(project.version.toString())
+version = effectiveVersion.get()
+
 val jreleaserStagingRepository = layout.buildDirectory.dir("staging-deploy")
 
 repositories {

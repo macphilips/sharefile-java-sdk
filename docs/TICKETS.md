@@ -1118,7 +1118,7 @@ Create GitHub Actions workflows for CI, snapshots, and releases.
 
 1. **CI** (`.github/workflows/ci.yml`): push/PR → build + test, cache Gradle, upload reports.
 2. **Snapshot** (`.github/workflows/snapshot.yml`): merge to main → publish to GitHub Packages + Sonatype Snapshots.
-3. **Release** (`.github/workflows/release.yml`): manual trigger → strip SNAPSHOT, sign, publish to Maven Central, tag, bump version.
+3. **Release** (`.github/workflows/release.yml`): push tag `v*.*.*` → derive release version from the tag, sign, and publish to Maven Central without pushing back to `main`.
 
 ### Acceptance Criteria
 
