@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import io.github.indraftapp.sharefile.core.jackson.ODataTypeResolver;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,6 +22,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Item extends ODataEntity {
+  private static final Set<String> KNOWN_PREVIEW_STATUSES =
+      Set.of("None", "Available", "Unavailable", "CanDocThumb");
 
   @JsonProperty("Name")
   private String name;
@@ -123,4 +126,22 @@ public class Item extends ODataEntity {
 
   @JsonProperty("SemanticPath")
   private String semanticPath;
+
+  public void setPreviewStatus(String previewStatus) {
+    if (previewStatus == null) {
+      this.previewStatus = null;
+      return;
+    }
+
+    String normalizedPreviewStatus = previewStatus.trim();
+    if (normalizedPreviewStatus.isEmpty()) {
+      this.previewStatus = "None";
+      return;
+    }
+
+    this.previewStatus =
+        KNOWN_PREVIEW_STATUSES.contains(normalizedPreviewStatus)
+            ? normalizedPreviewStatus
+            : "Unknown";
+  }
 }

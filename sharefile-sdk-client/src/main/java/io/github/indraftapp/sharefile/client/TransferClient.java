@@ -234,9 +234,10 @@ public final class TransferClient {
     Objects.requireNonNull(file, "file must not be null");
     UploadOptions resolvedOptions = options == null ? UploadOptions.defaults() : options;
     AtomicBoolean cancelled = new AtomicBoolean(false);
+    AtomicBoolean cancellationCallbackInvoked = new AtomicBoolean(false);
     long fileSize = estimateSize(file);
     ProgressTracker tracker = newUploadTracker(fileSize, resolvedOptions);
-    CompletableFuture<UploadResult> future =
+    CompletableFuture<UploadResult> rawFuture =
         CompletableFuture.supplyAsync(
             () ->
                 uploadInternal(
@@ -249,8 +250,15 @@ public final class TransferClient {
                     tracker,
                     cancelled),
             asyncExecutor);
-    attachUploadCallback(future, resolvedOptions.getCallback(), cancelled);
-    return new UploadHandle(future, tracker.ref(), cancelled);
+    CompletableFuture<UploadResult> future =
+        attachUploadCallback(
+            rawFuture, resolvedOptions.getCallback(), cancelled, cancellationCallbackInvoked);
+    return new UploadHandle(
+        future,
+        rawFuture,
+        tracker.ref(),
+        cancelled,
+        cancellationCallback(resolvedOptions.getCallback(), cancellationCallbackInvoked));
   }
 
   /**
@@ -292,8 +300,9 @@ public final class TransferClient {
       String folderId, InputStream stream, String fileName, long fileSize, UploadOptions options) {
     UploadOptions resolvedOptions = options == null ? UploadOptions.defaults() : options;
     AtomicBoolean cancelled = new AtomicBoolean(false);
+    AtomicBoolean cancellationCallbackInvoked = new AtomicBoolean(false);
     ProgressTracker tracker = newUploadTracker(fileSize, resolvedOptions);
-    CompletableFuture<UploadResult> future =
+    CompletableFuture<UploadResult> rawFuture =
         CompletableFuture.supplyAsync(
             () ->
                 uploadInternal(
@@ -306,17 +315,25 @@ public final class TransferClient {
                     tracker,
                     cancelled),
             asyncExecutor);
-    attachUploadCallback(future, resolvedOptions.getCallback(), cancelled);
-    return new UploadHandle(future, tracker.ref(), cancelled);
+    CompletableFuture<UploadResult> future =
+        attachUploadCallback(
+            rawFuture, resolvedOptions.getCallback(), cancelled, cancellationCallbackInvoked);
+    return new UploadHandle(
+        future,
+        rawFuture,
+        tracker.ref(),
+        cancelled,
+        cancellationCallback(resolvedOptions.getCallback(), cancellationCallbackInvoked));
   }
 
   public UploadHandle uploadToShareAsync(String shareId, Path file, UploadOptions options) {
     Objects.requireNonNull(file, "file must not be null");
     UploadOptions resolvedOptions = options == null ? UploadOptions.defaults() : options;
     AtomicBoolean cancelled = new AtomicBoolean(false);
+    AtomicBoolean cancellationCallbackInvoked = new AtomicBoolean(false);
     long fileSize = estimateSize(file);
     ProgressTracker tracker = newUploadTracker(fileSize, resolvedOptions);
-    CompletableFuture<UploadResult> future =
+    CompletableFuture<UploadResult> rawFuture =
         CompletableFuture.supplyAsync(
             () ->
                 uploadInternal(
@@ -329,8 +346,15 @@ public final class TransferClient {
                     tracker,
                     cancelled),
             asyncExecutor);
-    attachUploadCallback(future, resolvedOptions.getCallback(), cancelled);
-    return new UploadHandle(future, tracker.ref(), cancelled);
+    CompletableFuture<UploadResult> future =
+        attachUploadCallback(
+            rawFuture, resolvedOptions.getCallback(), cancelled, cancellationCallbackInvoked);
+    return new UploadHandle(
+        future,
+        rawFuture,
+        tracker.ref(),
+        cancelled,
+        cancellationCallback(resolvedOptions.getCallback(), cancellationCallbackInvoked));
   }
 
   public void download(String itemId, Path target, DownloadOptions options) {
@@ -404,12 +428,15 @@ public final class TransferClient {
     return new ProgressTracker(fileSize, options.getProgressListener(), options.getCallback());
   }
 
-  private void attachUploadCallback(
-      CompletableFuture<UploadResult> future, UploadCallback callback, AtomicBoolean cancelled) {
+  private CompletableFuture<UploadResult> attachUploadCallback(
+      CompletableFuture<UploadResult> future,
+      UploadCallback callback,
+      AtomicBoolean cancelled,
+      AtomicBoolean cancellationCallbackInvoked) {
     if (callback == null) {
-      return;
+      return future;
     }
-    future.whenComplete(
+    return future.whenComplete(
         (result, error) -> {
           if (error == null) {
             invokeUploadCallback(() -> callback.onCompleted(result), "completed");
@@ -417,11 +444,25 @@ public final class TransferClient {
           }
           Throwable cause = unwrapCompletionError(error);
           if (cancelled.get() || cause instanceof CancellationException) {
-            invokeUploadCallback(callback::onCancelled, "cancelled");
+            if (cancellationCallbackInvoked.compareAndSet(false, true)) {
+              invokeUploadCallback(callback::onCancelled, "cancelled");
+            }
             return;
           }
           invokeUploadCallback(() -> callback.onFailed(cause), "failed");
         });
+  }
+
+  private Runnable cancellationCallback(
+      UploadCallback callback, AtomicBoolean cancellationCallbackInvoked) {
+    if (callback == null) {
+      return null;
+    }
+    return () -> {
+      if (cancellationCallbackInvoked.compareAndSet(false, true)) {
+        invokeUploadCallback(callback::onCancelled, "cancelled");
+      }
+    };
   }
 
   private Throwable unwrapCompletionError(Throwable error) {
