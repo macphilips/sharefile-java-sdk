@@ -1,0 +1,5 @@
+{
+  "odata.type": "ShareFile.Api.Models.Group",
+  "Id": "group-123",
+  "Name": "Engineering"
+}

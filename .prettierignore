@@ -1,0 +1,13 @@
+.git
+.gradle
+.gradle-local
+.idea
+build
+dist
+node_modules
+out
+target
+*.class
+*.jar
+*.war
+*.log

@@ -1,0 +1,5 @@
+{
+  "odata.type": "ShareFile.Api.Models.User",
+  "Id": "user-123",
+  "Email": "person@example.com"
+}

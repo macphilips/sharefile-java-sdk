@@ -1,0 +1,5 @@
+{
+  "odata.type": "ShareFile.Api.Models.File",
+  "Id": "item-123",
+  "Name": "My Document.pdf"
+}

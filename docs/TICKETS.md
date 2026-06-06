@@ -10,12 +10,13 @@ Individual ticket files are in [`docs/tickets/`](tickets/).
 
 ## Release Milestones
 
-| Milestone | Tickets | Scope |
-|-----------|---------|-------|
+| Milestone      | Tickets              | Scope                                                                                                                            |
+| -------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | **v0.1 — MVP** | SF-01 → SF-14, SF-19 | Auth, OData, streaming HTTP, all Tier 1 resource clients, TransferClient, metrics SPI, builder, typed exceptions, WireMock tests |
-| **v0.2** | SF-15, SF-16 | Pagination, Tier 2 resource clients (Groups, Webhooks, Sessions) |
-| **v0.3** | SF-17, SF-18 | Spring Boot starter, Micrometer metrics, health indicator |
-| **v1.0** | SF-19, SF-20 | Test infrastructure, CI/CD, Maven Central publishing |
+| **v0.2**       | SF-15, SF-16         | Pagination, Tier 2 resource clients (Groups, Webhooks, Sessions)                                                                 |
+| **v0.3**       | SF-17, SF-18         | Spring Boot starter, Micrometer metrics, health indicator                                                                        |
+| **v0.4**       | SF-21 → SF-29        | Endpoint coverage deltas from API_ENDPOINT_COVERAGE.md without duplicating existing tickets                                      |
+| **v1.0**       | SF-19, SF-20         | Test infrastructure, CI/CD, Maven Central publishing                                                                             |
 
 ---
 
@@ -66,8 +67,28 @@ SF-01  Gradle Project Scaffolding
   ├──▶ SF-19  Test Infrastructure & Fixtures
   │      (depends on: SF-14)
   │
-  └──▶ SF-20  CI/CD & Publishing
-       (depends on: SF-01)
+  ├──▶ SF-20  CI/CD & Publishing
+  │      (depends on: SF-01)
+  │
+  └──▶ v0.4 Endpoint Coverage Deltas
+       ├──▶ SF-21  Auth Authorization URL Connector
+       │      (depends on: SF-07, SF-14)
+       ├──▶ SF-22  Items Endpoint Coverage Delta
+       │      (depends on: SF-09, SF-12)
+       ├──▶ SF-23  Users Endpoint Coverage Delta
+       │      (depends on: SF-11)
+       ├──▶ SF-24  Shares Endpoint Coverage Delta
+       │      (depends on: SF-11, SF-12)
+       ├──▶ SF-25  Accounts Client Endpoint Coverage
+       │      (depends on: SF-14)
+       ├──▶ SF-26  AccessControls Endpoint Coverage Delta
+       │      (depends on: SF-10)
+       ├──▶ SF-27  AsyncOperations Endpoint Coverage Delta
+       │      (depends on: SF-10)
+       ├──▶ SF-28  Zones Client Endpoint Coverage
+       │      (depends on: SF-14)
+       └──▶ SF-29  Devices Client
+              (depends on: SF-14)
 ```
 
 ---
@@ -86,6 +107,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
 ### Requirements
 
 1. Create root `build.gradle.kts` with:
+
    - `io.github.gradle-nexus.publish-plugin` v2.0.0
    - Sonatype OSSRH config reading from environment variables `OSSRH_USERNAME` / `OSSRH_PASSWORD`
    - Subproject defaults: `java-library`, `maven-publish`, `signing` plugins
@@ -96,6 +118,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    - Signing only for non-SNAPSHOT versions
 
 2. Create `settings.gradle.kts` including all modules:
+
    - `sharefile-sdk-core`
    - `sharefile-sdk-client`
    - `sharefile-spring-boot-starter`
@@ -103,6 +126,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    - `sharefile-sdk-test`
 
 3. Create `gradle.properties`:
+
    ```properties
    group=io.github.indraftapp
    version=1.0.0-SNAPSHOT
@@ -111,6 +135,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
 4. Create each module's `build.gradle.kts` with exact dependencies per §17:
 
    **sharefile-sdk-core:**
+
    ```kotlin
    dependencies {
        implementation("com.fasterxml.jackson.core:jackson-databind")
@@ -119,6 +144,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    ```
 
    **sharefile-sdk-client:**
+
    ```kotlin
    dependencies {
        api(project(":sharefile-sdk-core"))
@@ -127,6 +153,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    ```
 
    **sharefile-spring-boot-starter:**
+
    ```kotlin
    dependencies {
        api(project(":sharefile-sdk-client"))
@@ -139,6 +166,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    ```
 
    **sharefile-sdk-bom:**
+
    ```kotlin
    plugins { id("java-platform") }
    dependencies {
@@ -151,6 +179,7 @@ Set up the multi-module Gradle project with Kotlin DSL, including all 5 modules,
    ```
 
    **sharefile-sdk-test:**
+
    ```kotlin
    dependencies {
        api(project(":sharefile-sdk-client"))
@@ -184,6 +213,7 @@ Implement all entity POJOs, the `ODataEntity` base class, `ODataFeed<T>` collect
 ### Requirements
 
 1. **Base class** — `ODataEntity` per §8.1:
+
    ```java
    public abstract class ODataEntity {
        @JsonProperty("odata.metadata") private String metadata;
@@ -195,11 +225,13 @@ Implement all entity POJOs, the `ODataEntity` base class, `ODataFeed<T>` collect
    ```
 
 2. **ODataFeed<T>** per §8.2:
+
    - Fields: `odata.count` (Integer), `odata.nextLink` (String), `value` (List<T>)
    - Implements `Iterable<T>`
    - `hasNextPage()`, `getItems()` methods
 
 3. **Entity hierarchy** per §8.3 — all types extend `ODataEntity`:
+
    - `Item` (with subclasses `File`, `Folder`, `Note`, `Link`, `SymbolicLink`)
    - `User` (with subclass `AccountUser`)
    - `Share`, `Group`, `Account`, `AccessControl`, `Zone`, `Device`, `DeviceUser`
@@ -211,6 +243,7 @@ Implement all entity POJOs, the `ODataEntity` base class, `ODataFeed<T>` collect
    Refer to `docs/API_REFERENCE.md` §13 for all field names and types. Use Jackson `@JsonProperty` with PascalCase names.
 
 4. **OperationResult<T>** sealed interface per §8.4:
+
    ```java
    public sealed interface OperationResult<T> {
        record Completed<T>(T entity) implements OperationResult<T> {}
@@ -222,6 +255,7 @@ Implement all entity POJOs, the `ODataEntity` base class, `ODataFeed<T>` collect
    ```
 
 5. **Enums** per §8.5 and API_REFERENCE.md §14:
+
    - `ShareType`, `UploadMethod`, `TreeMode`, `ItemOrderingMode`, `DlpStatus`, `PreviewStatus`, `ZoneService`, `GrantType`
    - All enums must use Jackson `@JsonValue` / `@JsonCreator` for serialization.
 
@@ -365,6 +399,7 @@ Create the SDK's default `ObjectMapper` configuration and custom deserializers.
 2. **ODataFeedDeserializer** for unwrapping `{ "odata.count": N, "value": [...] }`.
 
 3. **ODataTypeResolver** — inspects `odata.type` JSON field for polymorphic dispatch:
+
    - `ShareFile.Api.Models.File` → `File.class`, etc.
    - Critical for `OperationResult<T>` and `Item` type hierarchy.
 
@@ -394,6 +429,7 @@ Implement the `HttpTransport` SPI with **streaming support** and the default JDK
 ### Requirements
 
 1. **HttpTransport** interface per §4.1 — streaming-first design:
+
    ```java
    public interface HttpTransport {
        HttpResponse execute(HttpRequest request) throws ShareFileNetworkException;
@@ -420,6 +456,7 @@ Implement the `HttpTransport` SPI with **streaming support** and the default JDK
    **Design rationale from spec:** File transfers can be multi-GB. The transport must never require buffering entire upload/download bodies as byte arrays. For JSON API calls (typically < 1MB), callers use `bodyBytes()`. For file transfers, callers consume `bodyStream()` directly.
 
 2. **Request construction helpers** (package-private):
+
    ```java
    HttpRequests.json("POST", uri, jsonBytes, timeout)       // JSON API calls
    HttpRequests.streaming("POST", uri, inputStream, size, timeout)  // file uploads
@@ -427,6 +464,7 @@ Implement the `HttpTransport` SPI with **streaming support** and the default JDK
    ```
 
 3. **JdkHttpTransport** per §4.2:
+
    - Uses `java.net.http.HttpClient` with `BodyHandlers.ofInputStream()` — never buffers full response
    - Configurable connect timeout from `ShareFileConfig`
    - `followRedirects` set to `NEVER`
@@ -461,6 +499,7 @@ Implement `CredentialProvider`, `Credentials`, `TokenManager`, `TokenStore`, and
 #### CredentialProvider (§5.2)
 
 1. **CredentialProvider** interface:
+
    ```java
    @FunctionalInterface
    public interface CredentialProvider {
@@ -469,6 +508,7 @@ Implement `CredentialProvider`, `Credentials`, `TokenManager`, `TokenStore`, and
    ```
 
 2. **Credentials** record with builder:
+
    ```java
    public record Credentials(
        String clientId, String clientSecret,
@@ -505,6 +545,7 @@ Implement `CredentialProvider`, `Credentials`, `TokenManager`, `TokenStore`, and
    **Critical:** Refresh-token grant uses only `client_id`, `client_secret`, and `refresh_token` — it does NOT call `CredentialProvider.resolve()`. The credential provider is only called for initial authentication or when refresh fails entirely.
 
 6. **TokenManager holds client credentials separately** (extracted once at build time via initial `CredentialProvider.resolve()` or builder convenience methods):
+
    ```java
    final class TokenManager implements AutoCloseable {
        private final String clientId;
@@ -559,6 +600,7 @@ Implement the internal request pipeline and retry engine as a single ticket — 
 #### ShareFileHttpClient (§4.4)
 
 1. Internal class wrapping `HttpTransport`:
+
    ```java
    final class ShareFileHttpClient {
        private final HttpTransport transport;
@@ -571,6 +613,7 @@ Implement the internal request pipeline and retry engine as a single ticket — 
    ```
 
 2. **Request pipeline** per §4.5:
+
    - Serialize body with Jackson → pass as `InputStream` via `HttpRequests.json()`
    - Build URI: `baseUrl + path + OData query params`
    - Attach `Authorization: Bearer {token}` from TokenManager
@@ -589,6 +632,7 @@ Implement the internal request pipeline and retry engine as a single ticket — 
 4. **RetryConfig**: `maxRetries` (3), `initialBackoff` (1s), `backoffMultiplier` (2.0), `jitterFactor` (0.2), `retryableStatuses` ({429, 500, 502, 503, 504}), `retryOnConnectionFailure` (true).
 
 5. **Retry policy** per §10.2:
+
    - 429: honor `Retry-After` header, else 5s/10s/20s, up to 3 retries
    - 5xx: exponential backoff + jitter, up to 3 retries
    - Connection failure: 2 retries for idempotent methods only (GET, PUT)
@@ -627,6 +671,7 @@ Implement the internal `ResourceRequestExecutor` helper and the first resource c
 #### ResourceRequestExecutor (§6.1)
 
 1. Package-private helper shared by all resource clients:
+
    ```java
    final class ResourceRequestExecutor {
        private final ShareFileHttpClient httpClient;
@@ -651,17 +696,17 @@ Implement the internal `ResourceRequestExecutor` helper and the first resource c
 
 2. **All methods** per §6.3 and the endpoint coverage matrix in §6.8. Use the matrix as the source of truth for HTTP method, endpoint URL, request/response types. Key methods:
 
-   | SDK Method | HTTP | Endpoint | Response | Notes |
-   |---|---|---|---|---|
-   | `getById(id)` | GET | `/Items({id})` | `Item` | Supports `home`, `favorites`, etc. |
-   | `getChildren(id, query)` | GET | `/Items({id})/Children` | `ODataFeed<Item>` | |
-   | `getByPath(path)` | GET | `/Items/ByPath?path=...` | `Item` | |
-   | `createFolder(parentId, req)` | POST | `/Items({parentId})/Folder` | `Item` | |
-   | `update(id, item)` | PATCH | `/Items({id})` | `OperationResult<Item>` | **Async** if cross-zone |
-   | `copy(id, targetId, overwrite)` | POST | `/Items({id})/Copy?...` | `OperationResult<Item>` | **Async** if cross-zone |
-   | `delete(id)` | DELETE | `/Items({id})` | — | |
-   | `upload(folderId, file, opts)` | — | — | `UploadResult` | Delegates to TransferClient |
-   | `download(itemId, target, opts)` | — | — | — | Delegates to TransferClient |
+   | SDK Method                       | HTTP   | Endpoint                    | Response                | Notes                              |
+   | -------------------------------- | ------ | --------------------------- | ----------------------- | ---------------------------------- |
+   | `getById(id)`                    | GET    | `/Items({id})`              | `Item`                  | Supports `home`, `favorites`, etc. |
+   | `getChildren(id, query)`         | GET    | `/Items({id})/Children`     | `ODataFeed<Item>`       |                                    |
+   | `getByPath(path)`                | GET    | `/Items/ByPath?path=...`    | `Item`                  |                                    |
+   | `createFolder(parentId, req)`    | POST   | `/Items({parentId})/Folder` | `Item`                  |                                    |
+   | `update(id, item)`               | PATCH  | `/Items({id})`              | `OperationResult<Item>` | **Async** if cross-zone            |
+   | `copy(id, targetId, overwrite)`  | POST   | `/Items({id})/Copy?...`     | `OperationResult<Item>` | **Async** if cross-zone            |
+   | `delete(id)`                     | DELETE | `/Items({id})`              | —                       |                                    |
+   | `upload(folderId, file, opts)`   | —      | —                           | `UploadResult`          | Delegates to TransferClient        |
+   | `download(itemId, target, opts)` | —      | —                           | —                       | Delegates to TransferClient        |
 
    (See full matrix in TECH_SPEC.md §6.8 for all ~25 methods)
 
@@ -694,6 +739,7 @@ Implement `AccessControlsClient` (composite keys, async-polymorphic) and `AsyncO
 ### Requirements
 
 1. **AccessControlsClient** per §6.4 and §6.8 endpoint matrix:
+
    - Composite key: `getById(principalId, itemId)` → `GET /AccessControls(principalid={p},itemid={i})`
    - `getByItem(itemId)` → `GET /Items({itemId})/AccessControls`
    - `create(itemId, acl, recursive)` → `OperationResult<AccessControl>` (**async** if recursive=true)
@@ -733,6 +779,7 @@ Implement `SharesClient` and `UsersClient` with all their resource-specific meth
 ### Requirements
 
 1. **SharesClient** per §6.6 and §6.8 endpoint matrix:
+
    - `getById`, `list`, `update`, `delete`
    - **Explicit share creation** (not generic `create`): `createSendShare(req)`, `createRequestShare(req)`
    - `getByUser(userId)`, `getRecipients(shareId)`, `sendNotification(shareId, req)`
@@ -769,6 +816,7 @@ Implement the upload and download pipelines with streaming transport, sync/async
 #### Upload Pipeline (§12.2-12.5)
 
 1. **TransferClient** (was TransferService) per §12.2:
+
    ```java
    public final class TransferClient {
        UploadResult upload(String folderId, Path file, UploadOptions options);
@@ -780,6 +828,7 @@ Implement the upload and download pipelines with streaming transport, sync/async
    ```
 
 2. **Three-phase pipeline** per §12.4:
+
    - Phase 1 (Negotiate): POST `/Items({folderId})/Upload2` → `UploadSpecification`
    - Phase 2 (Transfer): POST file bytes via **streaming `InputStream`** to ChunkUri using **unauthenticated** `HttpTransport`. Uses `HttpRequests.streaming()` — never buffers entire file.
      - Standard: single POST, file < 4MB
@@ -794,6 +843,7 @@ Implement the upload and download pipelines with streaming transport, sync/async
 #### Download Pipeline (§12.6-12.7)
 
 5. **Download methods:**
+
    ```java
    void download(String itemId, Path target, DownloadOptions options);
    InputStream downloadStream(String itemId, DownloadOptions options);
@@ -870,12 +920,14 @@ Implement `ShareFileClient` and `ShareFileClientBuilder` — the main entry poin
 ### Requirements
 
 1. **ShareFileClient** per §3.1:
+
    - `static builder()` returns `ShareFileClientBuilder`
    - Resource client accessors: `items()`, `users()`, `shares()`, `accessControls()`, `asyncOperations()`, `transfers()`, plus stubs for tier 2/3 clients (groups, webhooks, sessions, accounts, zones)
    - `checkHealth()` per §11.5
    - Implements `AutoCloseable`
 
 2. **ShareFileClientBuilder** per §3.2:
+
    - Required: `subdomain(String)`
    - Credentials: `credentialProvider(CredentialProvider)`, `clientCredentials()` + `authorizationCode()` (recommended), `accessToken()`, `passwordGrant()` (legacy)
    - Optional: `apiControlPlane`, timeouts, `httpTransport`, `tokenStore`, `metricsProvider`, `objectMapper`, `executor`, `retryConfig`, `tokenRefreshBuffer`, `baseUrl` (testing)
@@ -939,7 +991,11 @@ Implement `GroupsClient`, `WebhookSubscriptionsClient`, and `SessionsClient`.
 
 ### Requirements
 
-1. **GroupsClient** per §6.8: `getById`, `list`, `create`, `update`, `delete`, `getMembers`, `addMember`, `removeMember`.
+1. **GroupsClient** per §6.8 and API_REFERENCE.md: `getById`, `list`, `create`, `update`, `delete`, `getMembers`, `addMember`, `removeMember`, `exportContacts`.
+
+   - `removeMember` must map to the exact API reference endpoint: `DELETE /sf/v3/Groups({id})/Contacts`.
+   - `exportContacts` must map to: `GET /sf/v3/Groups({id})/ExportDocument`.
+   - `UsersClient#getGroups(userId)` already covers `GET /sf/v3/Users({id})/Groups`; do not duplicate that method in `GroupsClient` unless a later ticket explicitly asks for a convenience alias.
 
 2. **WebhookSubscriptionsClient** per §6.8: `getById`, `list`, `create`, `delete`.
 
@@ -951,6 +1007,8 @@ Implement `GroupsClient`, `WebhookSubscriptionsClient`, and `SessionsClient`.
 
 - All methods map to correct endpoints
 - GroupsClient member management uses nested URLs
+- GroupsClient exposes `GET /Groups({id})/ExportDocument`
+- GroupsClient contact removal matches the exact API reference path
 - WebhookSubscriptions CRUD works
 
 ---
@@ -969,6 +1027,7 @@ Implement Spring Boot auto-configuration that creates a `ShareFileClient` bean f
 ### Requirements
 
 1. **ShareFileAutoConfiguration** per §14.1:
+
    - `@AutoConfiguration`, `@ConditionalOnClass`, `@EnableConfigurationProperties`
    - Accepts `Optional<CredentialProvider>` — overrides properties if present
    - Accepts `Optional<MeterRegistry>` — plugs in `MicrometerMetricsProvider`
@@ -1059,10 +1118,240 @@ Create GitHub Actions workflows for CI, snapshots, and releases.
 
 1. **CI** (`.github/workflows/ci.yml`): push/PR → build + test, cache Gradle, upload reports.
 2. **Snapshot** (`.github/workflows/snapshot.yml`): merge to main → publish to GitHub Packages + Sonatype Snapshots.
-3. **Release** (`.github/workflows/release.yml`): manual trigger → strip SNAPSHOT, sign, publish to Maven Central, tag, bump version.
+3. **Release** (`.github/workflows/release.yml`): push tag `v*.*.*` → derive release version from the tag, sign, and publish to Maven Central without pushing back to `main`.
 
 ### Acceptance Criteria
 
 - CI runs on PRs
 - Snapshots publish on merge to main
 - Release signs, publishes, tags, and bumps
+
+---
+
+## SF-21: Auth Authorization URL Connector
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-07, SF-14
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §1.1, API_ENDPOINT_COVERAGE.md Authentication
+
+### Goal
+
+Expose a public SDK connector for constructing the ShareFile OAuth authorization URL.
+
+### Requirements
+
+1. Add a public auth-facing API that builds `GET https://secure.sharefile.com/oauth/authorize`.
+2. Support `response_type`, `client_id`, `redirect_uri`, and `state`.
+3. Default `response_type` to `code` unless the caller explicitly chooses another documented value.
+4. Do not perform network I/O; return a URI suitable for redirecting a user.
+5. Preserve existing token exchange, password grant, refresh-token, bearer-token, and HMAC behavior.
+
+### Acceptance Criteria
+
+- Unit tests assert the generated URI host, path, and encoded query parameters
+- The API does not call `CredentialProvider.resolve()`
+- Existing authentication tests continue to pass
+
+---
+
+## SF-22: Items Endpoint Coverage Delta
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-09, SF-12
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §3, API_ENDPOINT_COVERAGE.md Items
+
+### Goal
+
+Add public `ItemsClient` and transfer APIs for Items endpoints that are missing after SF-09 and SF-12.
+
+### Requirements
+
+1. Add exact GET connectors for `/Items`, `/ConnectorGroups({id})/Children`, `/Items({id})/WebView`, `/Items({id})/ProtocolLinks({platform})`, and `/Items({id})/Redirection`.
+2. Add exact POST connectors for symbolic links, connector-group children, advanced simple search, bulk delete permanently, web app links, template association removal, versioning violation checks, previewability checks, and legacy `/Items({folderId})/Upload`.
+3. Add exact PATCH connectors for `/Items/Link({id})`, `/Items/Note({id})`, and `/Items/SymbolicLink({id})`.
+4. Keep existing non-exact permanent delete and `Upload2` behavior intact while adding exact API reference connectors.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method and path for every added endpoint family
+- Existing Items and Transfer tests continue to pass
+- No existing public method is removed or silently remapped to a different endpoint
+
+---
+
+## SF-23: Users Endpoint Coverage Delta
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-11
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §4, API_ENDPOINT_COVERAGE.md Users
+
+### Goal
+
+Add public `UsersClient` APIs for Users endpoints that are missing after SF-11, without removing existing convenience methods.
+
+### Requirements
+
+1. Add exact lookup, client-user, employee, and role connectors, including `GET /Users?emailaddress={email}`, `/UsersForFolder`, `/Users/AccountUser`, and `/Users({id})/Roles`.
+2. Add exact folder, FileBox, preference, security, shared-folder, and user-info connectors.
+3. Add exact password, notification, client bulk-delete, employee downgrade, and first-login confirmation connectors.
+4. Add network/sharepoint connector, email-address, web-app-link, inbox, sent-message, and manage-user link connectors.
+5. Keep `getByEmail`, `resetPassword(id)`, and `sendWelcomeEmail(id)` for backward compatibility, but add exact API reference methods for the documented paths.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method, path, and query parameters for each endpoint family
+- Existing SF-11 UsersClient behavior remains backward compatible
+- Request/response types use existing core models where possible
+
+---
+
+## SF-24: Shares Endpoint Coverage Delta
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-11, SF-12
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §5, API_ENDPOINT_COVERAGE.md Shares
+
+### Goal
+
+Add public `SharesClient` and transfer APIs for Shares endpoints that are missing after SF-11 and SF-12.
+
+### Requirements
+
+1. Add recipient and item detail connectors, including single recipient, create recipient, single item, thumbnail, and protocol links.
+2. Add recipient download connectors for `/DownloadWithAlias` and recipient bulk download.
+3. Add alias, send callback, exact send/request/resend, redirection, inbox, and sent-message content connectors.
+4. Keep `createSendShare` and `createRequestShare` against `POST /Shares` for backward compatibility while adding exact `/Shares/Send` and `/Shares/Request` connectors.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method, path, and query parameters for each endpoint family
+- Existing SF-11 and SF-12 Shares behavior remains backward compatible
+- Download endpoints that return redirect specifications preserve streaming concerns in `TransferClient`
+
+---
+
+## SF-25: Accounts Client Endpoint Coverage
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-14
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §6, API_ENDPOINT_COVERAGE.md Accounts
+
+### Goal
+
+Expand `AccountsClient` from current-account lookup to full API reference endpoint coverage.
+
+### Requirements
+
+1. Add account lookup, branding, preferences, mobile security, and product defaults connectors.
+2. Add employee, client, address book, and email account list connectors.
+3. Add SSO and login/folder access-control-domain connectors.
+4. Add WebPop, subdomain, Outlook, tenant, tenant zone usage, tenant zones, and admin web app connectors.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method, path, and query parameters for each endpoint family
+- `ShareFileClient#checkHealth` continues to use current-account lookup unchanged
+- Request/response types are narrow and documented when the API reference does not map to existing models
+
+---
+
+## SF-26: AccessControls Endpoint Coverage Delta
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-10
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §8, API_ENDPOINT_COVERAGE.md AccessControls
+
+### Goal
+
+Add the remaining AccessControls endpoints missing after SF-10.
+
+### Requirements
+
+1. Add `POST /sf/v3/AccessControls/BulkDeleteForPrincipal?principalId={principalId}`.
+2. Add `POST /sf/v3/Items({id})/AccessControls/NotifyUsersPreview`.
+3. Keep existing `bulkDelete(itemId, principalIds)` and `notifyUsers(itemId, ...)` behavior intact.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method, path, and query parameters for both endpoints
+- Existing SF-10 AccessControls tests continue to pass
+
+---
+
+## SF-27: AsyncOperations Endpoint Coverage Delta
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-10
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §12, API_ENDPOINT_COVERAGE.md AsyncOperations
+
+### Goal
+
+Add the AsyncOperations endpoints documented in the API reference but missing after SF-10.
+
+### Requirements
+
+1. Add exact GET connectors for `GetByBatch`, `GetBatch`, and `GetByFolder`.
+2. Add exact mutation connectors for operation cancel, batch cancel, operation state update, and operation delete.
+3. Keep existing `list()` and `awaitCompletion()` behavior intact even though `GET /AsyncOperations` is not documented in API_REFERENCE.md.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method and path for every added endpoint
+- Existing polling behavior continues to use `GET /AsyncOperations({id})`
+
+---
+
+## SF-28: Zones Client Endpoint Coverage
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-14
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §9, API_ENDPOINT_COVERAGE.md Zones
+
+### Goal
+
+Implement `ZonesClient` endpoint coverage for the API reference.
+
+### Requirements
+
+1. Replace the placeholder client with explicit methods for Zones CRUD.
+2. Add reset secret, tenants, add tenant, remove tenant, metadata list, metadata create/update, and metadata delete connectors.
+3. Keep `ShareFileClient#zones()` as the public accessor.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method, path, and query parameters for each endpoint family
+- `ShareFileClient#zones()` returns the implemented client
+
+---
+
+## SF-29: Devices Client
+
+**Module:** `sharefile-sdk-client`
+**Depends on:** SF-14
+**Milestone:** v0.4 Endpoint Coverage
+**Spec Reference:** API_REFERENCE.md §10, API_ENDPOINT_COVERAGE.md Devices
+
+### Goal
+
+Add a public `DevicesClient` and wire it into `ShareFileClient`.
+
+### Requirements
+
+1. Add exact methods for current-user devices, device by ID, devices for user, delete device for user, wipe, lock, and unlock.
+2. Add `ShareFileClient#devices()`.
+3. Wire `DevicesClient` in `ShareFileClientBuilder`.
+4. Use existing `Device` and `DeviceUser` models where possible.
+
+### Acceptance Criteria
+
+- Mock transport tests assert exact HTTP method and path for every endpoint
+- `ShareFileClient#devices()` is available and returns a configured client
+- Existing builder lifecycle tests are updated for the new client accessor

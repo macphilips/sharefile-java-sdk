@@ -38,17 +38,18 @@ If an endpoint, model field, or behavior is unclear, do **not** guess. Mark it a
 
 ## 3. Tech Stack
 
-| Area | Standard |
-|---|---|
-| Java | Java 17+ |
-| Build | Gradle with Kotlin DSL |
-| Core HTTP | `java.net.http.HttpClient` |
-| Spring HTTP adapter | Spring `RestClient` |
-| Serialization | Jackson |
-| JSON style | ShareFile/OData v3 JSON Light, PascalCase properties |
-| Framework requirement | None for core/client modules |
-| Optional framework | Spring Boot 3 starter |
-| Group ID | `io.github.indraftapp` |
+| Area                  | Standard                                             |
+| --------------------- | ---------------------------------------------------- |
+| Java                  | Java 17+                                             |
+| Build                 | Gradle with Kotlin DSL                               |
+| Core HTTP             | `java.net.http.HttpClient`                           |
+| Spring HTTP adapter   | Spring `RestClient`                                  |
+| Serialization         | Jackson                                              |
+| Boilerplate reduction | Lombok, compile-only with annotation processing      |
+| JSON style            | ShareFile/OData v3 JSON Light, PascalCase properties |
+| Framework requirement | None for core/client modules                         |
+| Optional framework    | Spring Boot 3 starter                                |
+| Group ID              | `io.github.indraftapp`                               |
 
 Use only dependencies approved in the tech spec or ticket being implemented.
 
@@ -58,13 +59,13 @@ Use only dependencies approved in the tech spec or ticket being implemented.
 
 Expected modules:
 
-| Module | Purpose |
-|---|---|
-| `sharefile-sdk-core` | Models, enums, OData builder, exceptions. No application framework dependencies. |
-| `sharefile-sdk-client` | Resource clients, HTTP transport, authentication, retry, transfer pipeline. Pure Java 17. |
-| `sharefile-spring-boot-starter` | Auto-configuration, configuration properties, Micrometer metrics, Actuator health. |
-| `sharefile-sdk-bom` | BOM for dependency/version alignment. |
-| `sharefile-sdk-test` | WireMock fixtures, `MockHttpTransport`, test utilities, `@ShareFileMockServer`. |
+| Module                          | Purpose                                                                                   |
+| ------------------------------- | ----------------------------------------------------------------------------------------- |
+| `sharefile-sdk-core`            | Models, enums, OData builder, exceptions. No application framework dependencies.          |
+| `sharefile-sdk-client`          | Resource clients, HTTP transport, authentication, retry, transfer pipeline. Pure Java 17. |
+| `sharefile-spring-boot-starter` | Auto-configuration, configuration properties, Micrometer metrics, Actuator health.        |
+| `sharefile-sdk-bom`             | BOM for dependency/version alignment.                                                     |
+| `sharefile-sdk-test`            | WireMock fixtures, `MockHttpTransport`, test utilities, `@ShareFileMockServer`.           |
 
 Do not collapse modules unless explicitly instructed.
 
@@ -181,16 +182,16 @@ Do not hide async responses or pretend these operations are always synchronous.
 
 Default retry behavior:
 
-| Method / Condition | Default |
-|---|---|
-| `GET` | Retry transient failures |
-| `PUT` | Retry transient failures only when safe |
-| `POST` | No retry unless explicitly opted in |
-| `PATCH` | No retry unless explicitly opted in |
-| `DELETE` | No retry unless explicitly opted in |
-| `401` | Refresh token and retry once |
-| `429` | Honor `Retry-After` when available |
-| `5xx` | Retry only if method is retry-safe |
+| Method / Condition | Default                                 |
+| ------------------ | --------------------------------------- |
+| `GET`              | Retry transient failures                |
+| `PUT`              | Retry transient failures only when safe |
+| `POST`             | No retry unless explicitly opted in     |
+| `PATCH`            | No retry unless explicitly opted in     |
+| `DELETE`           | No retry unless explicitly opted in     |
+| `401`              | Refresh token and retry once            |
+| `429`              | Honor `Retry-After` when available      |
+| `5xx`              | Retry only if method is retry-safe      |
 
 Do not add default retry-on-delete behavior.
 
@@ -340,7 +341,25 @@ Configure Jackson with:
 - PascalCase support where useful
 - explicit handling for OData metadata fields
 
-### 7.4 Exceptions
+### 7.4 Lombok
+
+Use Lombok to reduce repetitive boilerplate when it does not obscure behavior or change API semantics.
+
+Preferred usage:
+
+- `@Getter` / `@Setter` for straightforward Java beans and DTOs
+- targeted constructor annotations when they clearly replace trivial boilerplate
+- compile-only / annotation-processor wiring only, never as a runtime dependency
+
+Use Lombok conservatively:
+
+- keep explicit methods when behavior is non-trivial
+- preserve Jackson annotations and field-level JSON mappings
+- preserve JavaDoc on public API types and non-obvious methods
+- avoid `@Data` on SDK models
+- avoid Lombok-generated `equals`, `hashCode`, or `toString` on recursive or graph-shaped entities unless explicitly required by a ticket
+
+### 7.5 Exceptions
 
 SDK exceptions are unchecked.
 
@@ -348,7 +367,7 @@ Follow the exception hierarchy defined in the tech spec and ticket `SF-03`.
 
 Do not throw raw `IOException`, `InterruptedException`, `HttpTimeoutException`, or Jackson exceptions from public SDK methods. Wrap them in SDK-specific exceptions.
 
-### 7.5 Thread Safety
+### 7.6 Thread Safety
 
 `ShareFileClient` and resource clients should be safe for concurrent use unless explicitly documented otherwise.
 
@@ -356,17 +375,17 @@ Do not throw raw `IOException`, `InterruptedException`, `HttpTimeoutException`, 
 
 If implementing async operations, preserve interrupt status when catching `InterruptedException`.
 
-### 7.6 Visibility
+### 7.7 Visibility
 
 Use the narrowest visibility possible.
 
-| Type | Visibility |
-|---|---|
-| Public SDK API | `public` |
+| Type                            | Visibility                             |
+| ------------------------------- | -------------------------------------- |
+| Public SDK API                  | `public`                               |
 | Resource client implementations | `public final` only if part of SDK API |
-| Internal helpers | package-private |
-| DTO internals | package-private where possible |
-| Test fixtures | test module only |
+| Internal helpers                | package-private                        |
+| DTO internals                   | package-private where possible         |
+| Test fixtures                   | test module only                       |
 
 Do not expose internal infrastructure as public API unless the spec requires it.
 
